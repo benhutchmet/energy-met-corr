@@ -32,6 +32,9 @@ MANIFEST
 *.manifest
 *.spec
 
+# Ignore .csv files
+*.csv
+
 # Installer logs
 pip-log.txt
 pip-delete-this-directory.txt
