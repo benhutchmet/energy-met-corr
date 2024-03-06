@@ -19,7 +19,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 
 # Import local modules
-import dictionaries as dicts
+import dictionaries_em as dicts
 
 # Define a function to form the dataframe for the offshore wind farm data
 def extract_offshore_eez_to_df(
