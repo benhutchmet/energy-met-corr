@@ -56,3 +56,9 @@ azores_grid = {"lon1": 152, "lon2": 160, "lat1": 36, "lat2": 40}
 
 # Define the dimensions for the gridbox for iceland
 iceland_grid = {"lon1": 155, "lon2": 164, "lat1": 63, "lat2": 70}
+
+# regrid file for pr
+regrid_file_pr = "/home/users/benhutch/ERA5/global_regrid_sel_region_var228.nc"
+
+# regrid file for for other variables
+regrid_file = "/home/users/benhutch/ERA5/global_regrid_sel_region.nc"
