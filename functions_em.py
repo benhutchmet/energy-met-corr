@@ -14,9 +14,11 @@ import glob
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import iris
 import xarray as xr
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
+from tqdm import tqdm
 
 # Import local modules
 import dictionaries_em as dicts
@@ -590,3 +592,145 @@ def plot_corr(corr_array: np.ndarray,
 
     # Return none
     return None
+
+# Define a function to process the data for plotting scatter plots
+def process_data_for_scatter(
+    season: str,
+    forecast_range: str,
+    start_year: int,
+    end_year: int,
+    predictor_var: str,
+    predictor_var_file: str,
+    predictand_var: str,
+    predictand_var_file: str,
+    region: dict,
+    quantiles: list = [0.75, 0.95],
+    nao_n_grid: dict = dicts.iceland_grid_corrected,
+    nao_s_grid: dict = dicts.azores_grid_corrected,
+):
+    """
+    Function which processes the data for the scatter plots.
+    
+    Args:
+    -----
+    
+    season: str
+        The season to calculate the correlation for.
+        E.g. ONDJFM, DJFM, DJF
+        
+    forecast_range: str
+        The forecast range to calculate the correlation for.
+        E.g. 2-5, 2-9
+        
+    start_year: int
+        The start year to calculate the correlation for.
+        E.g. 1960
+        
+    end_year: int
+        The end year to calculate the correlation for.
+        E.g. 2014
+        
+    predictor_var: str
+        The variable to use as the predictor.
+        E.g. "si10"
+
+    predictor_var_file: str
+        The file containing the predictor variable.
+        Could be the observed or model data.
+
+    predictand_var: str
+        The variable to use as the predictand.
+        E.g. "pr"
+
+    predictand_var_file: str
+        The file containing the predictand variable.
+        Could be the observed or model data.
+
+    region: dict
+        The dictionary containing the region information.
+        E.g. {"lon1": 332, "lon2": 340, "lat1": 40, "lat2": 36}
+        Could also be a shapefile.
+
+    quantiles: list
+        The quantiles to calculate for the scatter plot.
+        E.g. [0.75, 0.95]
+
+    nao_n_grid: dict
+        The dictionary containing the grid information for the northern node of the winter NAO index.
+        Default is the iceland grid for the regridded data.
+
+    nao_s_grid: dict
+        The dictionary containing the grid information for the southern node of the winter NAO index.
+        Default is the azores grid for the regridded data.
+
+    Returns:
+    --------
+
+    scatter_dict: dict
+        The dictionary containing the scatter plot data.
+    """
+
+    # Set up the mdi
+    mdi = -9999.0
+
+    # Set up the scatter dictionary
+    scatter_dict = {
+        "predictor_var": predictor_var,
+        "predictand_var": predictand_var,
+        "season": season,
+        "forecast_range": forecast_range,
+        "start_year": start_year,
+        "end_year": end_year,
+        "quantiles": quantiles,
+        "region": region,
+        "predictor_var_ts": [],
+        "predictand_var_ts": [],
+        "corr": mdi,
+        "pval": mdi,
+        f"first_quantile_{quantiles[0]}": mdi,
+        f"second_quantile_{quantiles[1]}": mdi,
+        "init_years": [],
+        "valid_years": [],
+    }
+
+    # Set up the init years
+    scatter_dict["init_years"] = np.arange(start_year, end_year + 1)
+
+    # Assert that the season is a winter season
+    assert season in ["DJF", "ONDJFM", "DJFM"], "The season must be a winter season."
+
+    # Assert that the file exists for the predictor variable
+    assert os.path.exists(predictor_var_file), "The file for the predictor variable does not exist."
+
+    # Assert that the file exists for the predictand variable
+    assert os.path.exists(predictand_var_file), "The file for the predictand variable does not exist."
+
+    # If the region is a dictionary
+    if isinstance(region, dict):
+        print("The region is a dictionary.")
+        print("Extracting the lats and lons from the region dictionary.")
+        # Extract the lats and lons from the region dictionary
+        lon1, lon2 = region["lon1"], region["lon2"]
+        lat1, lat2 = region["lat1"], region["lat2"]
+    else:
+        print("The region is not a dictionary.")
+        AssertionError("The region must be a dictionary. Not a shapefile.")
+
+    # If the predictor var is nao
+    if predictor_var == "nao":
+        print("The predictor variable is the NAO index.")
+        print("Extracting the NAO index from the predictor variable file.")
+
+        # Extract the lats and lons from the region dictionary
+        n_lon1, n_lon2 = nao_n_grid["lon1"], nao_n_grid["lon2"]
+        n_lat1, n_lat2 = nao_n_grid["lat1"], nao_n_grid["lat2"]
+
+        # Extract the lats and lons from the region dictionary
+        s_lon1, s_lon2 = nao_s_grid["lon1"], nao_s_grid["lon2"]
+        s_lat1, s_lat2 = nao_s_grid["lat1"], nao_s_grid["lat2"]
+
+        # Echo an error that we have not implemented this yet
+        raise NotImplementedError("We have not implemented this yet.")
+
+    #
+        
