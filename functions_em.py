@@ -19,6 +19,7 @@ import xarray as xr
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from tqdm import tqdm
+from scipy.stats import pearsonr, linregress, t
 
 # Import local modules
 import dictionaries_em as dicts
@@ -699,12 +700,24 @@ def process_data_for_scatter(
         "region": region,
         "predictor_var_ts": [],
         "predictand_var_ts": [],
-        "corr": mdi,
+        "rval": mdi,
         "pval": mdi,
+        "slope": mdi,
+        "intercept": mdi,
+        "std_err": mdi,
         f"first_quantile_{quantiles[0]}": mdi,
         f"second_quantile_{quantiles[1]}": mdi,
         "init_years": [],
         "valid_years": [],
+        "nens": mdi,
+        "ts_corr": mdi,
+        "ts_pval": mdi,
+        "ts_rpc": mdi,
+        "ts_rps": mdi,
+        "lag": mdi,
+        "gridbox": region,
+        "gridbox_name": region_name,
+        "method": mdi,
     }
 
     # Set up the init years
@@ -757,33 +770,102 @@ def process_data_for_scatter(
 
         # Echo an error that we have not implemented this yet
         raise NotImplementedError("We have not implemented this yet.")
+    else:
+        print("The predictor variable is not the NAO index.")
+        print("Extracting the predictor variable from the predictor variable file.")
 
-    # Extract the data for the predictor variable
-    predictor_var_data = nal_funcs.load_data(
-        season=season,
-        forecast_range=forecast_range,
-        start_year=start_year,
-        end_year=end_year,
-        lag=predictor_var_dict["lag"],
-        method=predictor_var_dict["method"],
-        region=predictor_var_dict["region"],
-        variable=predictor_var,
-    )
+        # Extract the data for the predictor variable
+        predictor_var_data = nal_funcs.load_data(
+            season=season,
+            forecast_range=forecast_range,
+            start_year=start_year,
+            end_year=end_year,
+            lag=predictor_var_dict["lag"],
+            method=predictor_var_dict["method"],
+            region=predictor_var_dict["region"],
+            variable=predictor_var,
+        )
 
-    # Load the data for the predictor variable
-    rm_dict = p1p_funcs.load_ts_data(
-        data=predictor_var_data,
-        season=season,
-        forecast_range=forecast_range,
-        start_year=start_year,
-        end_year=end_year,
-        lag=predictor_var_dict["lag"],
-        gridbox=region,
-        gridbox_name=region_name,
-        variable=predictor_var,
-        alt_lag=predictor_var_dict["alt_lag"],
-        region=predictor_var_dict["region"],
-    )
+        # Load the data for the predictor variable
+        rm_dict = p1p_funcs.load_ts_data(
+            data=predictor_var_data,
+            season=season,
+            forecast_range=forecast_range,
+            start_year=start_year,
+            end_year=end_year,
+            lag=predictor_var_dict["lag"],
+            gridbox=region,
+            gridbox_name=region_name,
+            variable=predictor_var,
+            alt_lag=predictor_var_dict["alt_lag"],
+            region=predictor_var_dict["region"],
+        )
+
+        # Append to the scatter dictionary
+        scatter_dict["predictor_var_ts"] = rm_dict["fcst_ts_mean"]
+        scatter_dict["predictand_var_ts"] = rm_dict["obs_ts"]
+
+        # append the init years
+        scatter_dict["init_years"] = rm_dict["init_years"]
+
+        # append the valid years
+        scatter_dict["valid_years"] = rm_dict["valid_years"]
+
+        # append the nens
+        scatter_dict["nens"] = rm_dict["nens"]
+
+        # append the ts_corr
+        scatter_dict["ts_corr"] = rm_dict["corr"]
+
+        # append the ts_pval
+        scatter_dict["ts_pval"] = rm_dict["pval"]
+
+        # append the ts_rpc
+        scatter_dict["ts_rpc"] = rm_dict["rpc"]
+
+        # append the ts_rps
+        scatter_dict["ts_rps"] = rm_dict["rps"]
+
+        # append the lag
+        scatter_dict["lag"] = rm_dict["lag"]
+
+        # append the gridbox
+        scatter_dict["gridbox"] = rm_dict["gridbox"]
+
+        # Append the method
+        scatter_dict["method"] = rm_dict["alt_lag"]
+
+        # Ussing the time series
+        # perform a linear regression
+        # and calculate the quantiles
+        # for the scatter plot
+        # Calculate the linear regression
+        slope, intercept, r_value, p_value, std_err = linregress(scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"])
+
+        # Store the linear regression values in the dictionary
+        scatter_dict["rval"] = r_value
+        scatter_dict["pval"] = p_value
+        scatter_dict["slope"] = slope
+        scatter_dict["intercept"] = intercept
+        scatter_dict["std_err"] = std_err
+
+        # Define a lamda function for the quantiles
+        tinv = lambda p, df: abs(t.ppf(p/2, df))
+
+        # Calculate the degrees of freedom
+        df = len(scatter_dict["predictor_var_ts"]) - 2
+
+        # Calculate the first quantile
+        q1 = tinv(quantiles[0], df) * scatter_dict["std_err"]
+
+        # Calculate the second quantile
+        q2 = tinv(quantiles[1], df) * scatter_dict["std_err"]
+
+        # Store the quantiles in the dictionary
+        scatter_dict[f"first_quantile_{quantiles[0]}"] = q1
+
+        # Store the quantiles in the dictionary
+        scatter_dict[f"second_quantile_{quantiles[1]}"] = q2
 
     # Return the dictionary
     return rm_dict
