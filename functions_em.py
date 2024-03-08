@@ -700,6 +700,8 @@ def process_data_for_scatter(
         "region": region,
         "predictor_var_ts": [],
         "predictand_var_ts": [],
+        "predictor_var_mean": mdi,
+        "predictand_var_mean": mdi,
         "rval": mdi,
         "pval": mdi,
         "slope": mdi,
@@ -835,6 +837,17 @@ def process_data_for_scatter(
         # Append the method
         scatter_dict["method"] = rm_dict["alt_lag"]
 
+        # if the predictor variable is 'pr'
+        if predictor_var == "pr":
+            # ERA5 is in units of m day-1
+            # Model is in units of kg m-2 s-1
+            # Convert the model units to m day-1
+            scatter_dict["predictor_var_ts"] = scatter_dict["predictor_var_ts"] * 86400
+
+            # ERA5 is in units of m day-1
+            # Convert to mm day-1
+            scatter_dict["predictand_var_ts"] = scatter_dict["predictand_var_ts"] * 1000
+
         # Ussing the time series
         # perform a linear regression
         # and calculate the quantiles
@@ -867,6 +880,12 @@ def process_data_for_scatter(
         # Store the quantiles in the dictionary
         scatter_dict[f"second_quantile_{quantiles[1]}"] = q2
 
+        # Calculate the mean of the predictor variable
+        scatter_dict["predictor_var_mean"] = np.mean(scatter_dict["predictor_var_ts"])
+
+        # Calculate the mean of the predictand variable
+        scatter_dict["predictand_var_mean"] = np.mean(scatter_dict["predictand_var_ts"])
+
     # Return the dictionary
     return scatter_dict
 
@@ -898,32 +917,51 @@ def plot_scatter(
     # Set up the axis
     ax = fig.add_subplot(111)
 
-    # Set the reg
-    reg_line = scatter_dict["slope"] * scatter_dict["predictor_var_ts"] + scatter_dict["intercept"]
+    # Find the minimum and maximum of the current x values
+    x_min = np.min(scatter_dict["predictor_var_ts"])
+    x_max = np.max(scatter_dict["predictor_var_ts"])
 
-    # Set up the 95% confidence interval
-    reg_line_95 = scatter_dict["slope"] * scatter_dict["predictor_var_ts"] + scatter_dict["intercept"] + 1.96 * scatter_dict["std_err"]
+    # Extend the range by a certain amount (e.g., 10% of the range)
+    x_range = x_max - x_min
+    x_min -= 0.1 * x_range
+    x_max += 0.1 * x_range
 
-    # Set up x axis
-    x = scatter_dict["predictor_var_ts"]
+    # Create a new array of x values using this extended range
+    x_values_extended = np.linspace(x_min, x_max, 100)
 
-    # Plot the line
-    ax.plot(x, reg_line, color="black", label="regression line")
+    # Plot the regression line using the new array of x values
+    ax.plot(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"], "k")
 
-    # # Plot the first quantile either side of the linear regression line
-    ax.fill_between(x, reg_line - reg_line_95, reg_line + reg_line_95, color="lightgray", label="95% confidence interval")
+    # Fill between the 95th quantile
+    ax.fill_between(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] - scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"], scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] + scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"], color="0.8", alpha=0.5)
+
+    # Fill between the 75th quantile
+    ax.fill_between(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] - scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"], scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] + scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"], color="0.6", alpha=0.5)
 
     # Plot the scatter plot
-    ax.plot(x, scatter_dict["predictand_var_ts"], "o", label="scatter plot")
+    ax.scatter(scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"])
+
+    # Plot the mean of the predictor variable as a vertical line
+    ax.axvline(scatter_dict["predictor_var_mean"], color="k", linestyle="--", alpha=0.5, linewidth=0.5)
+
+    # Plot the mean of the predictand variable as a horizontal line
+    ax.axhline(scatter_dict["predictand_var_mean"], color="k", linestyle="--", alpha=0.5, linewidth=0.5)
+
+    # Plot the r value in a text box in the top left corner
+    ax.text(0.05, 0.95, f"r = {scatter_dict['rval']:.2f}", transform=ax.transAxes, ha="left", va="top",
+            bbox=dict(facecolor="white", alpha=0.5), fontsize=12)
 
     # Set up the x-axis label
-    ax.set_xlabel(f"Model {scatter_dict['predictor_var']} anomalies")
+    ax.set_xlabel(f"Hindcast {scatter_dict['predictor_var']} anomalies (mm/day)")
                   
     # Set up the y-axis label
-    ax.set_ylabel(f"Obs {scatter_dict['predictand_var']} anomalies")
+    ax.set_ylabel(f"Observed {scatter_dict['predictand_var']} anomalies (mm/day)")
 
     # Set up the title
     ax.set_title(f"Scatter plot for {scatter_dict['season']} {scatter_dict['forecast_range']} {scatter_dict['start_year']} - {scatter_dict['end_year']} {scatter_dict['gridbox_name']} gridbox")
+
+    # limit the x-axis
+    ax.set_xlim(x_min, x_max)
 
     # Set up the legend
     ax.legend()
