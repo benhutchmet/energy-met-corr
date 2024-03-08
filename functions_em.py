@@ -818,7 +818,7 @@ def process_data_for_scatter(
         scatter_dict["ts_corr"] = rm_dict["corr"]
 
         # append the ts_pval
-        scatter_dict["ts_pval"] = rm_dict["pval"]
+        scatter_dict["ts_pval"] = rm_dict["p"]
 
         # append the ts_rpc
         scatter_dict["ts_rpc"] = rm_dict["rpc"]
@@ -856,10 +856,10 @@ def process_data_for_scatter(
         df = len(scatter_dict["predictor_var_ts"]) - 2
 
         # Calculate the first quantile
-        q1 = tinv(quantiles[0], df) * scatter_dict["std_err"]
+        q1 = tinv(1 - quantiles[0], df) * scatter_dict["std_err"]
 
         # Calculate the second quantile
-        q2 = tinv(quantiles[1], df) * scatter_dict["std_err"]
+        q2 = tinv(1 - quantiles[1], df) * scatter_dict["std_err"]
 
         # Store the quantiles in the dictionary
         scatter_dict[f"first_quantile_{quantiles[0]}"] = q1
@@ -868,4 +868,71 @@ def process_data_for_scatter(
         scatter_dict[f"second_quantile_{quantiles[1]}"] = q2
 
     # Return the dictionary
-    return rm_dict
+    return scatter_dict
+
+# Define a function to plot the scatter plot
+def plot_scatter(
+    scatter_dict: dict,
+):
+    """
+    Function which plots the scatter plot.
+
+    Args:
+    -----
+
+    scatter_dict: dict
+        The dictionary containing the scatter plot data.
+
+    Returns:
+    --------
+
+    None
+    """
+
+    # Set up the mdi
+    mdi = -9999.0
+
+    # Set up the figure
+    fig = plt.figure(figsize=(10, 5))
+
+    # Set up the axis
+    ax = fig.add_subplot(111)
+
+    # Set the reg
+    reg_line = scatter_dict["slope"] * scatter_dict["predictor_var_ts"] + scatter_dict["intercept"]
+
+    # Set up the 95% confidence interval
+    reg_line_95 = scatter_dict["slope"] * scatter_dict["predictor_var_ts"] + scatter_dict["intercept"] + 1.96 * scatter_dict["std_err"]
+
+    # Set up x axis
+    x = scatter_dict["predictor_var_ts"]
+
+    # Plot the line
+    ax.plot(x, reg_line, color="black", label="regression line")
+
+    # # Plot the first quantile either side of the linear regression line
+    ax.fill_between(x, reg_line - reg_line_95, reg_line + reg_line_95, color="lightgray", label="95% confidence interval")
+
+    # Plot the scatter plot
+    ax.plot(x, scatter_dict["predictand_var_ts"], "o", label="scatter plot")
+
+    # Set up the x-axis label
+    ax.set_xlabel(f"Model {scatter_dict['predictor_var']} anomalies")
+                  
+    # Set up the y-axis label
+    ax.set_ylabel(f"Obs {scatter_dict['predictand_var']} anomalies")
+
+    # Set up the title
+    ax.set_title(f"Scatter plot for {scatter_dict['season']} {scatter_dict['forecast_range']} {scatter_dict['start_year']} - {scatter_dict['end_year']} {scatter_dict['gridbox_name']} gridbox")
+
+    # Set up the legend
+    ax.legend()
+
+    # # Set up the grid
+    # ax.grid()
+
+    # Show the plot
+    plt.show()
+
+    # Return none
+    return None
