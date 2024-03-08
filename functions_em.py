@@ -1071,10 +1071,10 @@ def plot_scatter(
             bbox=dict(facecolor="white", alpha=0.5), fontsize=12)
 
     # Set up the x-axis label
-    ax.set_xlabel(f"Hindcast {scatter_dict['predictor_var']} anomalies (mm/day)")
+    ax.set_xlabel(f"Hindcast {scatter_dict['predictor_var']} anomalies (hPa)")
                   
     # Set up the y-axis label
-    ax.set_ylabel(f"Observed {scatter_dict['predictand_var']} anomalies (mm/day)")
+    ax.set_ylabel(f"Observed {scatter_dict['predictand_var']} anomalies (m/s)")
 
     # Set up the title
     ax.set_title(f"Scatter plot for {scatter_dict['season']} {scatter_dict['forecast_range']} {scatter_dict['start_year']} - {scatter_dict['end_year']} {scatter_dict['gridbox_name']} gridbox")
