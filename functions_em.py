@@ -26,6 +26,7 @@ import dictionaries_em as dicts
 # Import external modules
 sys.path.append("/home/users/benhutch/skill-maps/python/")
 import paper1_plots_functions as p1p_funcs
+import nao_alt_lag_functions as nal_funcs
 
 # Define a function to form the dataframe for the offshore wind farm data
 def extract_offshore_eez_to_df(
@@ -758,7 +759,7 @@ def process_data_for_scatter(
         raise NotImplementedError("We have not implemented this yet.")
 
     # Extract the data for the predictor variable
-    predictor_var_data = p1p_funcs.load_data(
+    predictor_var_data = nal_funcs.load_data(
         season=season,
         forecast_range=forecast_range,
         start_year=start_year,
