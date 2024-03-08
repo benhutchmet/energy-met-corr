@@ -28,6 +28,7 @@ import dictionaries_em as dicts
 sys.path.append("/home/users/benhutch/skill-maps/python/")
 import paper1_plots_functions as p1p_funcs
 import nao_alt_lag_functions as nal_funcs
+import functions as fnc
 
 # Define a function to form the dataframe for the offshore wind farm data
 def extract_offshore_eez_to_df(
@@ -612,8 +613,6 @@ def process_data_for_scatter(
     region: dict,
     region_name: str,
     quantiles: list = [0.75, 0.95],
-    nao_n_grid: dict = dicts.iceland_grid_corrected,
-    nao_s_grid: dict = dicts.azores_grid_corrected,
 ):
     """
     Function which processes the data for the scatter plots.
@@ -669,14 +668,6 @@ def process_data_for_scatter(
     quantiles: list
         The quantiles to calculate for the scatter plot.
         E.g. [0.75, 0.95]
-
-    nao_n_grid: dict
-        The dictionary containing the grid information for the northern node of the winter NAO index.
-        Default is the iceland grid for the regridded data.
-
-    nao_s_grid: dict
-        The dictionary containing the grid information for the southern node of the winter NAO index.
-        Default is the azores grid for the regridded data.
 
     Returns:
     --------
@@ -762,16 +753,138 @@ def process_data_for_scatter(
         print("The predictor variable is the NAO index.")
         print("Extracting the NAO index from the predictor variable file.")
 
-        # Extract the lats and lons from the region dictionary
-        n_lon1, n_lon2 = nao_n_grid["lon1"], nao_n_grid["lon2"]
-        n_lat1, n_lat2 = nao_n_grid["lat1"], nao_n_grid["lat2"]
+        # Load the psl data for processing the NAO stats
+        psl_data = nal_funcs.load_data(
+            season=season,
+            forecast_range=forecast_range,
+            start_year=start_year,
+            end_year=end_year,
+            lag=predictor_var_dict["lag"],
+            method="alt_lag",
+            region=predictor_var_dict["region"],
+            variable="psl",
+        )
+        
+        # Use the function to calculate the NAO stats
+        nao_stats = nal_funcs.calc_nao_stats(
+            data=psl_data,
+            season=season,
+            forecast_range=forecast_range,
+            start_year=start_year,
+            end_year=end_year,
+            lag=predictor_var_dict["lag"],
+            alt_lag=True,
+        )
 
-        # Extract the lats and lons from the region dictionary
-        s_lon1, s_lon2 = nao_s_grid["lon1"], nao_s_grid["lon2"]
-        s_lat1, s_lat2 = nao_s_grid["lat1"], nao_s_grid["lat2"]
+        # Extract the data for the predictor variable
+        predictor_var_data = nal_funcs.load_data(
+            season=season,
+            forecast_range=forecast_range,
+            start_year=start_year,
+            end_year=end_year,
+            lag=predictor_var_dict["lag"],
+            method=predictor_var_dict["method"],
+            region=predictor_var_dict["region"],
+            variable=predictand_var,
+        )
 
-        # Echo an error that we have not implemented this yet
-        raise NotImplementedError("We have not implemented this yet.")
+        # Load the data for the predictor variable
+        rm_dict = p1p_funcs.load_ts_data(
+            data=predictor_var_data,
+            season=season,
+            forecast_range=forecast_range,
+            start_year=start_year,
+            end_year=end_year,
+            lag=predictor_var_dict["lag"],
+            gridbox=region,
+            gridbox_name=region_name,
+            variable=predictand_var,
+            alt_lag=predictor_var_dict["alt_lag"],
+            region=predictor_var_dict["region"],
+        )
+
+        # Append to the scatter dictionary
+        scatter_dict["predictor_var_ts"] = nao_stats["model_nao_mean"]
+        scatter_dict["predictand_var_ts"] = rm_dict["obs_ts"]
+
+        # append the init years
+        scatter_dict["init_years"] = rm_dict["init_years"]
+
+        # append the valid years
+        scatter_dict["valid_years"] = rm_dict["valid_years"]
+
+        # append the nens
+        scatter_dict["nens"] = nao_stats["nens"]
+
+        # append the ts_corr
+        scatter_dict["ts_corr"] = nao_stats["corr1"]
+
+        # append the ts_pval
+        scatter_dict["ts_pval"] = nao_stats["p1"]
+
+        # append the ts_rpc
+        scatter_dict["ts_rpc"] = nao_stats["rpc1"]
+
+        # append the ts_rps
+        scatter_dict["ts_rps"] = nao_stats["rps1"]
+
+        # append the lag
+        scatter_dict["lag"] = rm_dict["lag"]
+
+        # append the gridbox
+        scatter_dict["gridbox"] = rm_dict["gridbox"]
+
+        # Append the method
+        scatter_dict["method"] = "alt_lag"
+
+        # If the predictand variable is 'pr'
+        if predictand_var == "pr":
+            # Convert obs to mm day-1
+            scatter_dict["predictand_var_ts"] = scatter_dict["predictand_var_ts"] * 1000
+
+        # Divide the predictor variable by 100
+        scatter_dict["predictor_var_ts"] = scatter_dict["predictor_var_ts"] / 100
+
+        # Standardize predictor_var_ts
+        scatter_dict["predictor_var_ts"] = (scatter_dict["predictor_var_ts"] - np.mean(scatter_dict["predictor_var_ts"])) / np.std(scatter_dict["predictor_var_ts"])
+
+        # Standardize predictand_var_ts
+        scatter_dict["predictand_var_ts"] = (scatter_dict["predictand_var_ts"] - np.mean(scatter_dict["predictand_var_ts"])) / np.std(scatter_dict["predictand_var_ts"])
+
+        # Perform a linear regression
+        # and calculate the quantiles
+        slope, intercept, r_value, p_value, std_err = linregress(scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"])
+
+        # Store the linear regression values in the dictionary
+        scatter_dict["rval"] = r_value
+        scatter_dict["pval"] = p_value
+        scatter_dict["slope"] = slope
+        scatter_dict["intercept"] = intercept
+        scatter_dict["std_err"] = std_err
+
+        # Define a lamda function for the quantiles
+        tinv = lambda p, df: abs(t.ppf(p/2, df))
+
+        # Calculate the degrees of freedom
+        df = len(scatter_dict["predictor_var_ts"]) - 2
+
+        # Calculate the first quantile
+        q1 = tinv(1 - quantiles[0], df) * scatter_dict["std_err"]
+
+        # Calculate the second quantile
+        q2 = tinv(1 - quantiles[1], df) * scatter_dict["std_err"]
+
+        # Store the quantiles in the dictionary
+        scatter_dict[f"first_quantile_{quantiles[0]}"] = q1
+
+        # Store the quantiles in the dictionary
+        scatter_dict[f"second_quantile_{quantiles[1]}"] = q2
+
+        # Calculate the mean of the predictor variable
+        scatter_dict["predictor_var_mean"] = np.mean(scatter_dict["predictor_var_ts"])
+
+        # Calculate the mean of the predictand variable
+        scatter_dict["predictand_var_mean"] = np.mean(scatter_dict["predictand_var_ts"])
     else:
         print("The predictor variable is not the NAO index.")
         print("Extracting the predictor variable from the predictor variable file.")
@@ -931,6 +1044,12 @@ def plot_scatter(
 
     # Plot the regression line using the new array of x values
     ax.plot(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"], "k")
+
+    # Print the first quantile
+    print("First quantile: ", scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"])
+
+    # Print the second quantile
+    print("Second quantile: ", scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"])
 
     # Fill between the 95th quantile
     ax.fill_between(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] - scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"], scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] + scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"], color="0.8", alpha=0.5)
