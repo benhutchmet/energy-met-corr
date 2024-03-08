@@ -764,7 +764,7 @@ def process_data_for_scatter(
         start_year=start_year,
         end_year=end_year,
         lag=predictor_var_dict["lag"],
-        alt_lag=predictor_var_dict["alt_lag"],
+        method=predictor_var_dict["method"],
         region=predictor_var_dict["region"],
         variable=predictor_var,
     )

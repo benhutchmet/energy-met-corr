@@ -62,3 +62,14 @@ regrid_file_pr = "/home/users/benhutch/ERA5/global_regrid_sel_region_var228.nc"
 
 # regrid file for for other variables
 regrid_file = "/home/users/benhutch/ERA5/global_regrid_sel_region.nc"
+
+
+# define the uk grid from Clarke et al. 2017
+uk_grid = {"lon1": -10, "lon2": 3, "lat1": 50, "lat2": 60}
+
+north_sea_kay = {
+    "lon1": 1,  # degrees east
+    "lon2": 7,
+    "lat1": 53,  # degrees north
+    "lat2": 59,
+}
