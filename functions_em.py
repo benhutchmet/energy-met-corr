@@ -23,6 +23,10 @@ from tqdm import tqdm
 # Import local modules
 import dictionaries_em as dicts
 
+# Import external modules
+sys.path.append("/home/users/benhutch/skill-maps/python/")
+import paper1_plots_functions as p1p_funcs
+
 # Define a function to form the dataframe for the offshore wind farm data
 def extract_offshore_eez_to_df(
     filepath: str,
@@ -600,10 +604,11 @@ def process_data_for_scatter(
     start_year: int,
     end_year: int,
     predictor_var: str,
-    predictor_var_file: str,
+    predictor_var_dict: dict,
     predictand_var: str,
     predictand_var_file: str,
     region: dict,
+    region_name: str,
     quantiles: list = [0.75, 0.95],
     nao_n_grid: dict = dicts.iceland_grid_corrected,
     nao_s_grid: dict = dicts.azores_grid_corrected,
@@ -634,9 +639,13 @@ def process_data_for_scatter(
         The variable to use as the predictor.
         E.g. "si10"
 
-    predictor_var_file: str
-        The file containing the predictor variable.
-        Could be the observed or model data.
+    predictor_var_dict: dict
+        The dictionary containing the grid information for the predictor variable.
+        E.g. {
+            "lag": 0, 
+            "alt_lag": False,
+            "region": "global",
+        }
 
     predictand_var: str
         The variable to use as the predictand.
@@ -650,6 +659,10 @@ def process_data_for_scatter(
         The dictionary containing the region information.
         E.g. {"lon1": 332, "lon2": 340, "lat1": 40, "lat2": 36}
         Could also be a shapefile.
+
+    region_name: str
+        The name of the region to use for the scatter plot.
+        E.g. "europe"
 
     quantiles: list
         The quantiles to calculate for the scatter plot.
@@ -699,11 +712,23 @@ def process_data_for_scatter(
     # Assert that the season is a winter season
     assert season in ["DJF", "ONDJFM", "DJFM"], "The season must be a winter season."
 
-    # Assert that the file exists for the predictor variable
-    assert os.path.exists(predictor_var_file), "The file for the predictor variable does not exist."
+    # # Assert that the file exists for the predictor variable
+    # assert os.path.exists(predictor_var_file), "The file for the predictor variable does not exist."
 
-    # Assert that the file exists for the predictand variable
-    assert os.path.exists(predictand_var_file), "The file for the predictand variable does not exist."
+    # # Assert that the file exists for the predictand variable
+    # assert os.path.exists(predictand_var_file), "The file for the predictand variable does not exist."
+
+    # Assert that predictor_var_dict is a dictionary
+    assert isinstance(predictor_var_dict, dict), "The predictor_var_dict must be a dictionary."
+
+    # Assert that predictor_var_dict contains keys for lag, alt_lag, and region
+    assert "lag" in predictor_var_dict.keys(), "The predictor_var_dict must contain a key for lag."
+
+    # Assert that predictor_var_dict contains keys for lag, alt_lag, and region
+    assert "alt_lag" in predictor_var_dict.keys(), "The predictor_var_dict must contain a key for alt_lag."
+
+    # Assert that predictor_var_dict contains keys for lag, alt_lag, and region
+    assert "region" in predictor_var_dict.keys(), "The predictor_var_dict must contain a key for region."
 
     # If the region is a dictionary
     if isinstance(region, dict):
@@ -732,5 +757,32 @@ def process_data_for_scatter(
         # Echo an error that we have not implemented this yet
         raise NotImplementedError("We have not implemented this yet.")
 
-    #
-        
+    # Extract the data for the predictor variable
+    predictor_var_data = p1p_funcs.load_data(
+        season=season,
+        forecast_range=forecast_range,
+        start_year=start_year,
+        end_year=end_year,
+        lag=predictor_var_dict["lag"],
+        alt_lag=predictor_var_dict["alt_lag"],
+        region=predictor_var_dict["region"],
+        variable=predictor_var,
+    )
+
+    # Load the data for the predictor variable
+    rm_dict = p1p_funcs.load_ts_data(
+        data=predictor_var_data,
+        season=season,
+        forecast_range=forecast_range,
+        start_year=start_year,
+        end_year=end_year,
+        lag=predictor_var_dict["lag"],
+        gridbox=region,
+        gridbox_name=region_name,
+        variable=predictor_var,
+        alt_lag=predictor_var_dict["alt_lag"],
+        region=predictor_var_dict["region"],
+    )
+
+    # Return the dictionary
+    return rm_dict
