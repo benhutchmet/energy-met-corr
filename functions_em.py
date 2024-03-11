@@ -30,20 +30,46 @@ import paper1_plots_functions as p1p_funcs
 import nao_alt_lag_functions as nal_funcs
 import functions as fnc
 
+
 # Define a function to form the dataframe for the offshore wind farm data
 def extract_offshore_eez_to_df(
     filepath: str,
-    countries_list: list = ["France", "Italy", "Portugal", "Estonia", "Latvia", "Lithuania", "Croatia", "Romania", "Slovenia", "Greece", "Montenegro", "Albania", "Bulgaria", "Spain", "Norway", "United Kingdom", "Ireland", "Finland", "Sweden", "Belgium", "Netherlands", "Germany", "Denmark", "Poland"],
+    countries_list: list = [
+        "France",
+        "Italy",
+        "Portugal",
+        "Estonia",
+        "Latvia",
+        "Lithuania",
+        "Croatia",
+        "Romania",
+        "Slovenia",
+        "Greece",
+        "Montenegro",
+        "Albania",
+        "Bulgaria",
+        "Spain",
+        "Norway",
+        "United Kingdom",
+        "Ireland",
+        "Finland",
+        "Sweden",
+        "Belgium",
+        "Netherlands",
+        "Germany",
+        "Denmark",
+        "Poland",
+    ],
     rolling_window: int = 8,
     centre: bool = True,
     annual_offset: int = 3,
     months: list = [10, 11, 12, 1, 2, 3],
-    start_date: str = '1950-01-01',
-    time_unit: str = 'h',
+    start_date: str = "1950-01-01",
+    time_unit: str = "h",
 ) -> pd.DataFrame:
     """
     Extracts the offshore wind farm data from the given file and returns it as a dataframe.
-    
+
     Args:
         filepath: str
             The path to the file containing the offshore wind farm data.
@@ -83,18 +109,23 @@ def extract_offshore_eez_to_df(
 
     # Create columns for each of the indexed NUTS regions
     # Pivot the DataFrame
-    df_pivot = df.reset_index().pivot(index='time_in_hours_from_first_jan_1950',
-                                       columns='NUTS',
-                                         values='timeseries_data')
-    
+    df_pivot = df.reset_index().pivot(
+        index="time_in_hours_from_first_jan_1950",
+        columns="NUTS",
+        values="timeseries_data",
+    )
+
     # Assuming country_dict is a dictionary that maps NUTS keys to country names
-    df_pivot.columns = [f"{dicts.country_dict[nuts_keys[i]]}_{col}" for i, col in enumerate(df_pivot.columns)]
-    
+    df_pivot.columns = [
+        f"{dicts.country_dict[nuts_keys[i]]}_{col}"
+        for i, col in enumerate(df_pivot.columns)
+    ]
+
     # Convert 'time_in_hours_from_first_jan_1950' column to datetime
     df_pivot.index = pd.to_datetime(df_pivot.index, unit=time_unit, origin=start_date)
 
     # Collapse the dataframes into monthly averages
-    df_pivot = df_pivot.resample('M').mean()
+    df_pivot = df_pivot.resample("M").mean()
 
     # Select only the months of interest
     df_pivot = df_pivot[df_pivot.index.month.isin(months)]
@@ -107,7 +138,7 @@ def extract_offshore_eez_to_df(
     df_pivot = df_pivot.iloc[3:-3]
 
     # Calculate the annual average
-    df_pivot = df_pivot.resample('A').mean()
+    df_pivot = df_pivot.resample("A").mean()
 
     # Take the rolling average
     df_pivot = df_pivot.rolling(window=rolling_window, center=centre).mean()
@@ -120,20 +151,21 @@ def extract_offshore_eez_to_df(
 
 
 # Write a function to calculate the stats
-def calc_nao_spatial_corr(season: str,
-                          forecast_range: str,
-                          start_year: int,
-                          end_year: int,
-                          corr_var: str = "tos",
-                          corr_var_obs_file: str = dicts.regrid_file_pr,
-                          nao_obs_var: str = "msl",
-                          nao_obs_file: str = dicts.regrid_file,
-                          nao_n_grid: dict = dicts.iceland_grid_corrected,
-                          nao_s_grid: dict = dicts.azores_grid_corrected,
-                          sig_threshold: float = 0.05,
+def calc_nao_spatial_corr(
+    season: str,
+    forecast_range: str,
+    start_year: int,
+    end_year: int,
+    corr_var: str = "tos",
+    corr_var_obs_file: str = dicts.regrid_file_pr,
+    nao_obs_var: str = "msl",
+    nao_obs_file: str = dicts.regrid_file,
+    nao_n_grid: dict = dicts.iceland_grid_corrected,
+    nao_s_grid: dict = dicts.azores_grid_corrected,
+    sig_threshold: float = 0.05,
 ):
     """
-    Calculates the spatial correlations between the NAO index (winter default) 
+    Calculates the spatial correlations between the NAO index (winter default)
     and the variable to correlate for the observations.
 
     Args:
@@ -199,7 +231,7 @@ def calc_nao_spatial_corr(season: str,
         "forecast_range": forecast_range,
         "start_year": start_year,
         "end_year": end_year,
-        "sig_threshold": sig_threshold
+        "sig_threshold": sig_threshold,
     }
 
     # Set up the init years
@@ -220,19 +252,19 @@ def calc_nao_spatial_corr(season: str,
     n_lat1, n_lat2 = nao_n_grid["lat1"], nao_n_grid["lat2"]
 
     # First check that the file exists for psl
-    assert os.path.exists(corr_var_obs_file), "The file for the variable to correlate does not exist."
+    assert os.path.exists(
+        corr_var_obs_file
+    ), "The file for the variable to correlate does not exist."
 
     # Check that the file exists for the NAO index
     assert os.path.exists(nao_obs_file), "The file for the NAO index does not exist."
 
     # Load the observations for psl
-    psl = fnc.load_obs(variable=nao_obs_var,
-                   regrid_obs_path=nao_obs_file)
-    
+    psl = fnc.load_obs(variable=nao_obs_var, regrid_obs_path=nao_obs_file)
+
     # Load the observations for the matching var
-    corr_var_field = fnc.load_obs(variable=corr_var,
-                        regrid_obs_path=corr_var_obs_file)
-    
+    corr_var_field = fnc.load_obs(variable=corr_var, regrid_obs_path=corr_var_obs_file)
+
     # extract the months
     months = dicts.season_month_map[season]
 
@@ -241,7 +273,9 @@ def calc_nao_spatial_corr(season: str,
     end_date = datetime(int(end_year), months[-1], 31)
 
     # Form the constraint
-    time_constraint = iris.Constraint(time=lambda cell: start_date <= cell.point <= end_date)
+    time_constraint = iris.Constraint(
+        time=lambda cell: start_date <= cell.point <= end_date
+    )
 
     # Apply the constraint
     psl = psl.extract(time_constraint)
@@ -254,10 +288,10 @@ def calc_nao_spatial_corr(season: str,
 
     # Apply the constraint
     psl = psl.extract(month_constraint)
-    
+
     # Apply the constraint
     corr_var_field = corr_var_field.extract(month_constraint)
-    
+
     # Calculate the climatology by collapsing the time dimension
     psl_clim = psl.collapsed("time", iris.analysis.MEAN)
 
@@ -271,27 +305,31 @@ def calc_nao_spatial_corr(season: str,
     corr_var_anom = corr_var_field - corr_var_clim
 
     # Calculate the annual mean anoms
-    psl_anom = fnc.calculate_annual_mean_anomalies(obs_anomalies=psl_anom,
-                                               season=season)
-    
+    psl_anom = fnc.calculate_annual_mean_anomalies(
+        obs_anomalies=psl_anom, season=season
+    )
+
     # Calculate the annual mean anoms
-    corr_var_anom = fnc.calculate_annual_mean_anomalies(obs_anomalies=corr_var_anom,
-                                               season=season)
-    
+    corr_var_anom = fnc.calculate_annual_mean_anomalies(
+        obs_anomalies=corr_var_anom, season=season
+    )
+
     # # Print psl anom at the first time step
     # print("psl anom at the first time step: ", psl_anom.isel(time=0).values)
-    
+
     # # print corr_var anom at the first time step
     # print("corr_var anom at the first time step: ", corr_var_anom.isel(time=0).values)
 
     # Select the forecast range
-    psl_anom = fnc.select_forecast_range(obs_anomalies_annual=psl_anom,
-                                        forecast_range=forecast_range)
-    
+    psl_anom = fnc.select_forecast_range(
+        obs_anomalies_annual=psl_anom, forecast_range=forecast_range
+    )
+
     # Select the forecast range
-    corr_var_anom = fnc.select_forecast_range(obs_anomalies_annual=corr_var_anom,
-                                        forecast_range=forecast_range)
-    
+    corr_var_anom = fnc.select_forecast_range(
+        obs_anomalies_annual=corr_var_anom, forecast_range=forecast_range
+    )
+
     # Years 2-9, gives an 8 year running mean
     # Which means that the first 4 years (1960, 1961, 1962, 1963) are not valid
     # And the last 4 years (2011, 2012, 2013, 2014) are not valid
@@ -304,8 +342,10 @@ def calc_nao_spatial_corr(season: str,
     n_invalid_years = diff + 1 / 2
 
     # Subset corr_var_anom to remove the invalid years
-    corr_var_anom = corr_var_anom.isel(time=slice(int(n_invalid_years), -int(n_invalid_years)))
-    
+    corr_var_anom = corr_var_anom.isel(
+        time=slice(int(n_invalid_years), -int(n_invalid_years))
+    )
+
     # # Loop over the years in psl_anom
     # for year in psl_anom.time.dt.year.values:
     #     # Extract the data for the year
@@ -350,7 +390,7 @@ def calc_nao_spatial_corr(season: str,
     #             print("Removing the year: ", year)
     #             # Remove the year from the psl_anom
     #             corr_var_anom = corr_var_anom.sel(time=corr_var_anom.time.dt.year != year)
-    
+
     # print the type of psl_anom
     print("type of psl_anom: ", type(psl_anom))
 
@@ -391,15 +431,15 @@ def calc_nao_spatial_corr(season: str,
     # assert 0 <= n_lon2 <= 360, "The northern lon is not within the range of 0 to 360."
 
     # Constraint the psl_anom to the south grid
-    psl_anom_s = psl_anom.sel(lon=slice(s_lon1, s_lon2),
-                               lat=slice(s_lat1, s_lat2)
-                               ).mean(dim=["lat", "lon"])
+    psl_anom_s = psl_anom.sel(
+        lon=slice(s_lon1, s_lon2), lat=slice(s_lat1, s_lat2)
+    ).mean(dim=["lat", "lon"])
 
     # Constraint the psl_anom to the north grid
-    psl_anom_n = psl_anom.sel(lon=slice(n_lon1, n_lon2),
-                               lat=slice(n_lat1, n_lat2)
-                               ).mean(dim=["lat", "lon"])
-    
+    psl_anom_n = psl_anom.sel(
+        lon=slice(n_lon1, n_lon2), lat=slice(n_lat1, n_lat2)
+    ).mean(dim=["lat", "lon"])
+
     # Calculate the nao index azores - iceland
     nao_index = psl_anom_s - psl_anom_n
 
@@ -428,7 +468,9 @@ def calc_nao_spatial_corr(season: str,
     years_corr_var = corr_var_anom.time.values
 
     # Assert that the years are the same
-    assert np.array_equal(years_nao, years_corr_var), "The years for the NAO index and the variable to correlate are not the same."
+    assert np.array_equal(
+        years_nao, years_corr_var
+    ), "The years for the NAO index and the variable to correlate are not the same."
 
     # Set the valid years
     stats_dict["valid_years"] = years_nao
@@ -486,12 +528,15 @@ def calc_nao_spatial_corr(season: str,
     # return none
     return stats_dict
 
+
 # define a simple function for plotting the correlation
-def plot_corr(corr_array: np.ndarray,
-                pval_array: np.ndarray,
-                lats: np.ndarray,
-                lons: np.ndarray,
-                sig_threshold: float = 0.05):
+def plot_corr(
+    corr_array: np.ndarray,
+    pval_array: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    sig_threshold: float = 0.05,
+):
     """
     Plots the correlation and p-values for the spatial correlation.
 
@@ -529,7 +574,6 @@ def plot_corr(corr_array: np.ndarray,
     # Focus on the euro-atlantic region
     lat1_grid, lat2_grid = 20, 80
     lon1_grid, lon2_grid = -100, 40
-
 
     lat1_idx_grid = np.argmin(np.abs(lats - lat1_grid))
     lat2_idx_grid = np.argmin(np.abs(lats - lat2_grid))
@@ -600,6 +644,7 @@ def plot_corr(corr_array: np.ndarray,
     # Return none
     return None
 
+
 # Define a function to process the data for plotting scatter plots
 def process_data_for_scatter(
     season: str,
@@ -616,26 +661,26 @@ def process_data_for_scatter(
 ):
     """
     Function which processes the data for the scatter plots.
-    
+
     Args:
     -----
-    
+
     season: str
         The season to calculate the correlation for.
         E.g. ONDJFM, DJFM, DJF
-        
+
     forecast_range: str
         The forecast range to calculate the correlation for.
         E.g. 2-5, 2-9
-        
+
     start_year: int
         The start year to calculate the correlation for.
         E.g. 1960
-        
+
     end_year: int
         The end year to calculate the correlation for.
         E.g. 2014
-        
+
     predictor_var: str
         The variable to use as the predictor.
         E.g. "si10"
@@ -643,7 +688,7 @@ def process_data_for_scatter(
     predictor_var_dict: dict
         The dictionary containing the grid information for the predictor variable.
         E.g. {
-            "lag": 0, 
+            "lag": 0,
             "alt_lag": False,
             "region": "global",
         }
@@ -726,16 +771,24 @@ def process_data_for_scatter(
     # assert os.path.exists(predictand_var_file), "The file for the predictand variable does not exist."
 
     # Assert that predictor_var_dict is a dictionary
-    assert isinstance(predictor_var_dict, dict), "The predictor_var_dict must be a dictionary."
+    assert isinstance(
+        predictor_var_dict, dict
+    ), "The predictor_var_dict must be a dictionary."
 
     # Assert that predictor_var_dict contains keys for lag, alt_lag, and region
-    assert "lag" in predictor_var_dict.keys(), "The predictor_var_dict must contain a key for lag."
+    assert (
+        "lag" in predictor_var_dict.keys()
+    ), "The predictor_var_dict must contain a key for lag."
 
     # Assert that predictor_var_dict contains keys for lag, alt_lag, and region
-    assert "alt_lag" in predictor_var_dict.keys(), "The predictor_var_dict must contain a key for alt_lag."
+    assert (
+        "alt_lag" in predictor_var_dict.keys()
+    ), "The predictor_var_dict must contain a key for alt_lag."
 
     # Assert that predictor_var_dict contains keys for lag, alt_lag, and region
-    assert "region" in predictor_var_dict.keys(), "The predictor_var_dict must contain a key for region."
+    assert (
+        "region" in predictor_var_dict.keys()
+    ), "The predictor_var_dict must contain a key for region."
 
     # If the region is a dictionary
     if isinstance(region, dict):
@@ -764,7 +817,7 @@ def process_data_for_scatter(
             region=predictor_var_dict["region"],
             variable="psl",
         )
-        
+
         # Use the function to calculate the NAO stats
         nao_stats = nal_funcs.calc_nao_stats(
             data=psl_data,
@@ -845,15 +898,22 @@ def process_data_for_scatter(
         # Divide the predictor variable by 100
         scatter_dict["predictor_var_ts"] = scatter_dict["predictor_var_ts"] / 100
 
-        # Standardize predictor_var_ts
-        scatter_dict["predictor_var_ts"] = (scatter_dict["predictor_var_ts"] - np.mean(scatter_dict["predictor_var_ts"])) / np.std(scatter_dict["predictor_var_ts"])
+        # # Standardize predictor_var_ts
+        # scatter_dict["predictor_var_ts"] = (
+        #     scatter_dict["predictor_var_ts"] - np.mean(scatter_dict["predictor_var_ts"])
+        # ) / np.std(scatter_dict["predictor_var_ts"])
 
-        # Standardize predictand_var_ts
-        scatter_dict["predictand_var_ts"] = (scatter_dict["predictand_var_ts"] - np.mean(scatter_dict["predictand_var_ts"])) / np.std(scatter_dict["predictand_var_ts"])
+        # # Standardize predictand_var_ts
+        # scatter_dict["predictand_var_ts"] = (
+        #     scatter_dict["predictand_var_ts"]
+        #     - np.mean(scatter_dict["predictand_var_ts"])
+        # ) / np.std(scatter_dict["predictand_var_ts"])
 
         # Perform a linear regression
         # and calculate the quantiles
-        slope, intercept, r_value, p_value, std_err = linregress(scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"])
+        slope, intercept, r_value, p_value, std_err = linregress(
+            scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"]
+        )
 
         # Store the linear regression values in the dictionary
         scatter_dict["rval"] = r_value
@@ -863,7 +923,7 @@ def process_data_for_scatter(
         scatter_dict["std_err"] = std_err
 
         # Define a lamda function for the quantiles
-        tinv = lambda p, df: abs(t.ppf(p/2, df))
+        tinv = lambda p, df: abs(t.ppf(p / 2, df))
 
         # Calculate the degrees of freedom
         df = len(scatter_dict["predictor_var_ts"]) - 2
@@ -966,7 +1026,9 @@ def process_data_for_scatter(
         # and calculate the quantiles
         # for the scatter plot
         # Calculate the linear regression
-        slope, intercept, r_value, p_value, std_err = linregress(scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"])
+        slope, intercept, r_value, p_value, std_err = linregress(
+            scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"]
+        )
 
         # Store the linear regression values in the dictionary
         scatter_dict["rval"] = r_value
@@ -976,7 +1038,7 @@ def process_data_for_scatter(
         scatter_dict["std_err"] = std_err
 
         # Define a lamda function for the quantiles
-        tinv = lambda p, df: abs(t.ppf(p/2, df))
+        tinv = lambda p, df: abs(t.ppf(p / 2, df))
 
         # Calculate the degrees of freedom
         df = len(scatter_dict["predictor_var_ts"]) - 2
@@ -1002,6 +1064,7 @@ def process_data_for_scatter(
     # Return the dictionary
     return scatter_dict
 
+
 # Define a function to plot the scatter plot
 def plot_scatter(
     scatter_dict: dict,
@@ -1025,7 +1088,7 @@ def plot_scatter(
     mdi = -9999.0
 
     # Set up the figure
-    fig = plt.figure(figsize=(10, 5))
+    fig = plt.figure(figsize=(8, 8))
 
     # Set up the axis
     ax = fig.add_subplot(111)
@@ -1042,45 +1105,103 @@ def plot_scatter(
     # Create a new array of x values using this extended range
     x_values_extended = np.linspace(x_min, x_max, 100)
 
+    # print the stanard error from the scatter dictionary
+    print("Standard error: ", scatter_dict["std_err"])
+
     # Plot the regression line using the new array of x values
-    ax.plot(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"], "k")
+    ax.plot(
+        x_values_extended,
+        scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"],
+        "k",
+    )
 
     # Print the first quantile
-    print("First quantile: ", scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"])
+    print(
+        "First quantile: ",
+        scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"],
+    )
 
     # Print the second quantile
-    print("Second quantile: ", scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"])
+    print(
+        "Second quantile: ",
+        scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"],
+    )
 
     # Fill between the 95th quantile
-    ax.fill_between(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] - scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"], scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] + scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"], color="0.8", alpha=0.5)
+    ax.fill_between(
+        x_values_extended,
+        scatter_dict["slope"] * x_values_extended
+        + scatter_dict["intercept"]
+        - scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"],
+        scatter_dict["slope"] * x_values_extended
+        + scatter_dict["intercept"]
+        + scatter_dict[f"second_quantile_{scatter_dict['quantiles'][1]}"],
+        color="0.8",
+        alpha=0.5,
+    )
 
     # Fill between the 75th quantile
-    ax.fill_between(x_values_extended, scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] - scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"], scatter_dict["slope"] * x_values_extended + scatter_dict["intercept"] + scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"], color="0.6", alpha=0.5)
+    ax.fill_between(
+        x_values_extended,
+        scatter_dict["slope"] * x_values_extended
+        + scatter_dict["intercept"]
+        - scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"],
+        scatter_dict["slope"] * x_values_extended
+        + scatter_dict["intercept"]
+        + scatter_dict[f"first_quantile_{scatter_dict['quantiles'][0]}"],
+        color="0.6",
+        alpha=0.5,
+    )
 
     # Plot the scatter plot
     ax.scatter(scatter_dict["predictor_var_ts"], scatter_dict["predictand_var_ts"])
 
     # Plot the mean of the predictor variable as a vertical line
-    ax.axvline(scatter_dict["predictor_var_mean"], color="k", linestyle="--", alpha=0.5, linewidth=0.5)
+    ax.axvline(
+        scatter_dict["predictor_var_mean"],
+        color="k",
+        linestyle="--",
+        alpha=0.5,
+        linewidth=0.5,
+    )
 
     # Plot the mean of the predictand variable as a horizontal line
-    ax.axhline(scatter_dict["predictand_var_mean"], color="k", linestyle="--", alpha=0.5, linewidth=0.5)
+    ax.axhline(
+        scatter_dict["predictand_var_mean"],
+        color="k",
+        linestyle="--",
+        alpha=0.5,
+        linewidth=0.5,
+    )
 
     # Plot the r value in a text box in the top left corner
-    ax.text(0.05, 0.95, f"r = {scatter_dict['rval']:.2f}", transform=ax.transAxes, ha="left", va="top",
-            bbox=dict(facecolor="white", alpha=0.5), fontsize=12)
+    ax.text(
+        0.05,
+        0.95,
+        f"r = {scatter_dict['rval']:.2f}",
+        transform=ax.transAxes,
+        ha="left",
+        va="top",
+        bbox=dict(facecolor="white", alpha=0.5),
+        fontsize=12,
+    )
 
     # Set up the x-axis label
     ax.set_xlabel(f"Hindcast {scatter_dict['predictor_var']} anomalies (hPa)")
-                  
+
     # Set up the y-axis label
     ax.set_ylabel(f"Observed {scatter_dict['predictand_var']} anomalies (m/s)")
 
     # Set up the title
-    ax.set_title(f"Scatter plot for {scatter_dict['season']} {scatter_dict['forecast_range']} {scatter_dict['start_year']} - {scatter_dict['end_year']} {scatter_dict['gridbox_name']} gridbox")
+    ax.set_title(
+        f"Scatter plot for {scatter_dict['season']} {scatter_dict['forecast_range']} {scatter_dict['start_year']} - {scatter_dict['end_year']} {scatter_dict['gridbox_name']} gridbox"
+    )
 
     # limit the x-axis
     ax.set_xlim(x_min, x_max)
+
+    # Include axis ticks on the inside and outside
+    ax.tick_params(axis="both", direction="in", top=True, right=True)
 
     # Set up the legend
     ax.legend()
