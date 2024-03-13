@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# Anything in the shapefiles dir
+shapefiles/
+
 # Distribution / packaging
 .Python
 build/
