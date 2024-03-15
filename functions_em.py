@@ -20,6 +20,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from tqdm import tqdm
 from scipy.stats import pearsonr, linregress, t
+from datetime import datetime
 
 # Import local modules
 import dictionaries_em as dicts
@@ -157,7 +158,7 @@ def calc_nao_spatial_corr(
     start_year: int,
     end_year: int,
     corr_var: str = "tos",
-    corr_var_obs_file: str = dicts.regrid_file_pr,
+    corr_var_obs_file: str = dicts.regrid_file,
     nao_obs_var: str = "msl",
     nao_obs_file: str = dicts.regrid_file,
     nao_n_grid: dict = dicts.iceland_grid_corrected,
@@ -330,6 +331,12 @@ def calc_nao_spatial_corr(
         obs_anomalies_annual=corr_var_anom, forecast_range=forecast_range
     )
 
+    # Print the length of the time axis for psl_anom
+    print("len(psl_anom.time): ", len(psl_anom.time))
+
+    # Print the length of the time axis for corr_var_anom
+    print("len(corr_var_anom.time): ", len(corr_var_anom.time))
+
     # Years 2-9, gives an 8 year running mean
     # Which means that the first 4 years (1960, 1961, 1962, 1963) are not valid
     # And the last 4 years (2011, 2012, 2013, 2014) are not valid
@@ -339,7 +346,10 @@ def calc_nao_spatial_corr(
     diff = abs(digits[0] - digits[1])
 
     # Find the number of invalid years after centred running mean on each end
-    n_invalid_years = diff + 1 / 2
+    n_invalid_years = (diff + 1) / 2
+
+    # Print the number of invalid years
+    print("n_invalid_years: ", n_invalid_years)
 
     # Subset corr_var_anom to remove the invalid years
     corr_var_anom = corr_var_anom.isel(
@@ -535,7 +545,11 @@ def plot_corr(
     pval_array: np.ndarray,
     lats: np.ndarray,
     lons: np.ndarray,
+    variable: str,
     sig_threshold: float = 0.05,
+    plot_gridbox: list = None,
+    nao: np.ndarray = None,
+    corr_var_ts: np.ndarray = None,
 ):
     """
     Plots the correlation and p-values for the spatial correlation.
@@ -555,8 +569,20 @@ def plot_corr(
     lons: np.ndarray
         The array containing the longitudes.
 
+    variable: str
+        The variable to use for the plot title.
+
     sig_threshold: float
         The significance threshold for the correlation.
+
+    plot_gridbox: list
+        List of gridboxes to plot on the plot.
+
+    nao: np.ndarray
+        The array containing the NAO index values.
+
+    corr_var_ts: np.ndarray
+        The array containing the variable to correlate values.
 
     Returns:
     --------
@@ -607,6 +633,13 @@ def plot_corr(
     # Constrain the pval_array to the grid
     pval_array = pval_array[lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid]
 
+    # If nao and corr_var_ts are not None
+    if nao is not None and corr_var_ts is not None:
+        # Constraint the corr_var_ts array to the grid
+        corr_var_ts = corr_var_ts[
+            :, lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid
+        ]
+
     # Set up the contour levels
     clevs = np.arange(-1.0, 1.1, 0.1)
 
@@ -632,11 +665,68 @@ def plot_corr(
     # Set up the colorbar
     cbar = plt.colorbar(cf, ax=ax, orientation="horizontal", pad=0.05, shrink=0.8)
 
+    # If the plot_gridbox is not None
+    if plot_gridbox is not None:
+        # Assert that it is a list
+        assert isinstance(
+            plot_gridbox, list
+        ), "The plot_gridbox must be a list of gridboxes."
+
+        # Assert that it is not empty
+        assert len(plot_gridbox) > 0, "The plot_gridbox list is empty."
+
+        # Loop over the gridboxes
+        for gridbox in plot_gridbox:
+            # Extract the lons and lats
+            lon1, lon2 = gridbox["lon1"], gridbox["lon2"]
+            lat1, lat2 = gridbox["lat1"], gridbox["lat2"]
+
+            # Find the indices for the lons and lats
+            lon1_idx = np.argmin(np.abs(lons - lon1))
+            lon2_idx = np.argmin(np.abs(lons - lon2))
+
+            lat1_idx = np.argmin(np.abs(lats - lat1))
+            lat2_idx = np.argmin(np.abs(lats - lat2))
+
+            # Add the gridbox to the plot
+            ax.plot(
+                [lon1, lon2, lon2, lon1, lon1],
+                [lat1, lat1, lat2, lat2, lat1],
+                color="green",
+                linewidth=2,
+                transform=proj,
+            )
+
+            # Constrain the corr_var_ts array to the gridbox
+            corr_var_ts_gridbox = corr_var_ts[
+                :, lat1_idx:lat2_idx, lon1_idx:lon2_idx
+            ].mean(axis=(1, 2))
+
+            # Print the len of the time series
+            print("len(corr_var_ts_gridbox): ", len(corr_var_ts_gridbox))
+            print("len(nao): ", len(nao))
+
+            # Calculate the correlation
+            corr, pval = pearsonr(nao, corr_var_ts_gridbox)
+
+            # Include the correlation on the plot
+            ax.text(
+                lon2,
+                lat2,
+                f"r = {corr:.2f}",
+                fontsize=8,
+                color="white",
+                transform=proj,
+                bbox=dict(facecolor="green", alpha=0.5, edgecolor="black"),
+            )
+    else:
+        print("No gridboxes to plot.")
+
+        # Add a title
+        ax.set_title(f"Correlation (obs NAO, obs {variable})")
+
     # Set up the colorbar label
     cbar.set_label("correlation coefficient")
-
-    # Add a title
-    ax.set_title("Corr(obs NAO, obs precip)")
 
     # Render the plot
     plt.show()
