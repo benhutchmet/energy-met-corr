@@ -1517,18 +1517,30 @@ def correlate_nao_uread(
         nao_df.set_index("time").rolling(window=rolling_window, center=centre).mean()
     )
 
-    # if there are NaN values
-    if nao_df.isnull().values.any():
-        # Drop the NaN values
-        nao_df = nao_df.dropna()
+    # Drop the NaN values
+    nao_df = nao_df.dropna()
 
     # Merge the dataframes, using the index of the first
     merged_df = df.join(nao_df, how="inner")
 
-    # If there are NaN values
-    if merged_df.isnull().values.any():
-        # Drop the NaN values
-        merged_df = merged_df.dropna()
+    # Drop the NaN values
+    merged_df = merged_df.dropna()
+
+    # Create a new dataframe for the correlations
+    corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+    # Loop over the columns
+    for col in merged_df.columns[:-1]:
+        # Calculate the correlation
+        corr, pval = pearsonr(merged_df[col], merged_df["NAO anomaly (Pa)"])
+
+        # Append to the dataframe
+        corr_df_to_append = pd.DataFrame(
+            {"region": [col], "correlation": [corr], "p-value": [pval]}
+        )
+
+        # Append to the dataframe
+        corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
 
     # Return the dataframe
-    return merged_df
+    return merged_df, corr_df
