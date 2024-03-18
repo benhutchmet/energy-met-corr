@@ -110,45 +110,44 @@ def extract_offshore_eez_to_df(
 
     # Create columns for each of the indexed NUTS regions
     # Pivot the DataFrame
-    df_pivot = df.reset_index().pivot(
+    df = df.reset_index().pivot(
         index="time_in_hours_from_first_jan_1950",
         columns="NUTS",
         values="timeseries_data",
     )
 
     # Assuming country_dict is a dictionary that maps NUTS keys to country names
-    df_pivot.columns = [
-        f"{dicts.country_dict[nuts_keys[i]]}_{col}"
-        for i, col in enumerate(df_pivot.columns)
+    df.columns = [
+        f"{dicts.country_dict[nuts_keys[i]]}_{col}" for i, col in enumerate(df.columns)
     ]
 
     # Convert 'time_in_hours_from_first_jan_1950' column to datetime
-    df_pivot.index = pd.to_datetime(df_pivot.index, unit=time_unit, origin=start_date)
+    df.index = pd.to_datetime(df.index, unit=time_unit, origin=start_date)
 
     # Collapse the dataframes into monthly averages
-    df_pivot = df_pivot.resample("M").mean()
+    df = df.resample("M").mean()
 
     # Select only the months of interest
-    df_pivot = df_pivot[df_pivot.index.month.isin(months)]
+    df = df[df.index.month.isin(months)]
 
     # Shift the data by the annual offset
-    df_pivot.index = df_pivot.index - pd.DateOffset(months=annual_offset)
+    df.index = df.index - pd.DateOffset(months=annual_offset)
 
     # TODO: Fix hard coded here
     # Throw away the first 3 months of data and last 3 months of data
-    df_pivot = df_pivot.iloc[3:-3]
+    df = df.iloc[3:-3]
 
     # Calculate the annual average
-    df_pivot = df_pivot.resample("A").mean()
+    df = df.resample("A").mean()
 
     # Take the rolling average
-    df_pivot = df_pivot.rolling(window=rolling_window, center=centre).mean()
+    df = df.rolling(window=rolling_window, center=centre).mean()
 
     # Throw away the NaN values
-    df_pivot = df_pivot.dropna()
+    df = df.dropna()
 
     # Return the dataframe
-    return df_pivot
+    return df
 
 
 # Write a function to calculate the stats
@@ -1304,3 +1303,232 @@ def plot_scatter(
 
     # Return none
     return None
+
+
+# Write a function to correlate the NAO with wind power CFs/demand/irradiance
+# Within a specific region as defined by the UREAD file being extracted
+def correlate_nao_uread(
+    filename: str,
+    forecast_range: str = "2-9",
+    months: list = [10, 11, 12, 1, 2, 3],
+    annual_offset: int = 3,
+    start_date: str = "1950-01-01",
+    time_unit: str = "h",
+    centre: bool = True,
+    directory: str = dicts.clearheads_dir,
+    obs_var: str = "msl",
+    obs_var_data_path: str = dicts.regrid_file,
+    start_year: str = "1960",
+    end_year: str = "2019",
+    nao_n_grid: dict = dicts.iceland_grid_corrected,
+    nao_s_grid: dict = dicts.azores_grid_corrected,
+) -> pd.DataFrame:
+    """
+    Function which correlates the observed NAO (from ERA5) with demand,
+    wind power CFs, irradiance, or other variables, from the UREAD datasets and
+    returns the correlation values.
+
+    Args:
+
+    filename: str
+        The filename to use for extracting the UREAD data.
+
+    forecast_range: str
+        The forecast range to use for extracting the UREAD data.
+        Default is "2-9", 8-year running mean.
+
+    months: list
+        The months to use for extracting the UREAD data.
+        Default is the winter months, October to March.
+
+    annual_offset: int
+        The annual offset to use for extracting the UREAD data.
+        Default is 3, for the winter months.
+
+    start_date: str
+        The start date to use for extracting the UREAD data.
+        Default is "1950-01-01".
+
+    time_unit: str
+        The time unit to use for extracting the UREAD data.
+        Default is "h".
+
+    centre: bool
+        Whether to use the centre of the window for the rolling average.
+
+    directory: str
+        The directory to use for extracting the UREAD data.
+
+    obs_var: str
+        The observed variable to use for calculating the NAO index.
+        Default is "msl".
+
+    obs_var_data_path: str
+        The path to the observed variable data.
+
+    start_year: int
+        The start year to use for extracting the UREAD data.
+
+    end_year: int
+        The end year to use for extracting the UREAD data.
+
+    nao_n_grid: dict
+        The dictionary containing the grid information for the northern NAO grid.
+
+    nao_s_grid: dict
+        The dictionary containing the grid information for the southern NAO grid.
+
+    Returns:
+
+    df: pd.DataFrame
+        The dataframe containing the correlation values.
+    """
+
+    # Find the files
+    files = glob.glob(f"{directory}/{filename}")
+
+    # If there are no files, raise an error
+    if len(files) == 0:
+        raise FileNotFoundError("No files found.")
+
+    # If there are multiple files, raise an error
+    if len(files) > 1:
+        raise ValueError("Multiple files found.")
+
+    # Load the data
+    data = xr.open_dataset(files[0])
+
+    # Assert that NUTS_keys can be extracted from the data
+    assert "NUTS_keys" in data.variables, "NUTS_keys not found in the data."
+
+    # Extract the NUTS keys
+    NUTS_keys = data["NUTS_keys"].values
+
+    # Print the nuts keys
+    print("NUTS_keys for UREAD data: ", NUTS_keys)
+
+    # Turn this data into a dataframe
+    df = data.to_dataframe()
+
+    # Pivot the dataframe
+    df = df.reset_index().pivot(
+        index="time_in_hours_from_first_jan_1950",
+        columns="NUTS",
+        values="timeseries_data",
+    )
+
+    # Add the nuts keys to the columns
+    df.columns = NUTS_keys
+
+    # Convert 'time_in_hours_from_first_jan_1950' column to datetime
+    df.index = pd.to_datetime(df.index, unit=time_unit, origin=start_date)
+
+    # Collapse the dataframes into monthly averages
+    df = df.resample("M").mean()
+
+    # Select only the months of interest
+    df = df[df.index.month.isin(months)]
+
+    # Shift the data by the annual offset
+    df.index = df.index - pd.DateOffset(months=annual_offset)
+
+    # TODO: Fix hard coded here
+    # Throw away the first 3 months of data and last 3 months of data
+    df = df.iloc[3:-3]
+
+    # Calculate the annual average
+    df = df.resample("A").mean()
+
+    # Calculate the rolling window
+    ff_year = int(forecast_range.split("-")[1])
+    lf_year = int(forecast_range.split("-")[0])
+
+    # Calculate the rolling window
+    rolling_window = (ff_year - lf_year) + 1  # e.g. (9-2) + 1 = 8
+
+    # Take the rolling average
+    df = df.rolling(window=rolling_window, center=centre).mean()
+
+    # Throw away the NaN values
+    df = df.dropna()
+
+    # load in the ERA5 data
+    clim_var = xr.open_mfdataset(
+        obs_var_data_path,
+        combine="by_coords",
+        parallel=True,
+        chunks={"time": "auto", "latitude": "auto", "longitude": "auto"},
+    )[
+        obs_var
+    ]  # for mean sea level pressure
+
+    # If expver is a variable in the dataset
+    if "expver" in clim_var.coords:
+        # Combine the first two expver variables
+        clim_var = clim_var.sel(expver=1).combine_first(clim_var.sel(expver=5))
+
+    # Constrain obs to ONDJFM
+    clim_var = clim_var.sel(time=clim_var.time.dt.month.isin(months))
+
+    # Shift the time index back by 3 months
+    clim_var_shifted = clim_var.shift(time=-annual_offset)
+
+    # Take annual means
+    clim_var_annual = clim_var_shifted.resample(time="Y").mean()
+
+    # Throw away years 1959, 2021, 2022 and 2023
+    clim_var_annual = clim_var_annual.sel(time=slice(start_year, end_year))
+
+    # Remove the climatology
+    clim_var_anomaly = clim_var_annual - clim_var_annual.mean(dim="time")
+
+    # Extract the lat and lons of iceland
+    lat1_n, lat2_n = nao_n_grid["lat1"], nao_n_grid["lat2"]
+    lon1_n, lon2_n = nao_n_grid["lon1"], nao_n_grid["lon2"]
+
+    # Extract the lat and lons of the azores
+    lat1_s, lat2_s = nao_s_grid["lat1"], nao_s_grid["lat2"]
+    lon1_s, lon2_s = nao_s_grid["lon1"], nao_s_grid["lon2"]
+
+    # Calculate the msl mean for the icealndic region
+    msl_mean_n = clim_var_anomaly.sel(
+        lat=slice(lat1_n, lat2_n), lon=slice(lon1_n, lon2_n)
+    ).mean(dim=["lat", "lon"])
+
+    # Calculate the msl mean for the azores region
+    msl_mean_s = clim_var_anomaly.sel(
+        lat=slice(lat1_s, lat2_s), lon=slice(lon1_s, lon2_s)
+    ).mean(dim=["lat", "lon"])
+
+    # Calculate the NAO index (azores - iceland)
+    nao_index = msl_mean_s - msl_mean_n
+
+    # Extract the time values
+    time_values = nao_index.time.values
+
+    # Extract the values
+    nao_values = nao_index.values
+
+    # Create a dataframe for the NAO data
+    nao_df = pd.DataFrame({"time": time_values, "NAO anomaly (Pa)": nao_values})
+
+    # Take a central rolling average
+    nao_df = (
+        nao_df.set_index("time").rolling(window=rolling_window, center=centre).mean()
+    )
+
+    # if there are NaN values
+    if nao_df.isnull().values.any():
+        # Drop the NaN values
+        nao_df = nao_df.dropna()
+
+    # Merge the dataframes, using the index of the first
+    merged_df = df.join(nao_df, how="inner")
+
+    # If there are NaN values
+    if merged_df.isnull().values.any():
+        # Drop the NaN values
+        merged_df = merged_df.dropna()
+
+    # Return the dataframe
+    return merged_df

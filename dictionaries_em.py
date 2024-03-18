@@ -5,21 +5,73 @@ Dictionaries for looking at observed correlations between reanalysis products an
 clearheads_dir = "/home/users/benhutch/CLEARHEADS_EU_Power_Data"
 
 era5_azores = {
-    'lat1': 40.0, # index from 90 to -90 (N to S) for lat
-    'lat2': 36.0,
-    'lon1': 332.0, 
-    'lon2': 340.0
+    "lat1": 40.0,  # index from 90 to -90 (N to S) for lat
+    "lat2": 36.0,
+    "lon1": 332.0,
+    "lon2": 340.0,
 }
 
 era5_iceland = {
-    'lat1': 70.0, # index from 90 to -90 (N to S) for lat
-    'lat2': 63.0,
-    'lon1': 335.0,
-    'lon2': 344.0
+    "lat1": 70.0,  # index from 90 to -90 (N to S) for lat
+    "lat2": 63.0,
+    "lon1": 335.0,
+    "lon2": 344.0,
 }
 
-country_codes = ['ES', 'NO', 'UK', 'IE', 'FI', 'SE', 'BE', 'NL', 'DE', 'DK', 'PO', 'FR', 'IT', 'PT', 'EE', 'LI', 'LV', 'HR', 'RO', 'SI', 'GR', 'TR', 'MT', 'AL', 'BG']
-countries_list = ["Spain", "Norway", "United Kingdom", "Ireland", "Finland", "Sweden", "Belgium", "Netherlands", "Germany", "Denmark", "Poland", "France", "Italy", "Portugal", "Estonia", "Lithuania", "Latvia", "Croatia", "Romania", "Slovenia", "Greece", "Turkey", "Malta", "Albania", "Bulgaria"]
+country_codes = [
+    "ES",
+    "NO",
+    "UK",
+    "IE",
+    "FI",
+    "SE",
+    "BE",
+    "NL",
+    "DE",
+    "DK",
+    "PO",
+    "FR",
+    "IT",
+    "PT",
+    "EE",
+    "LI",
+    "LV",
+    "HR",
+    "RO",
+    "SI",
+    "GR",
+    "TR",
+    "MT",
+    "AL",
+    "BG",
+]
+countries_list = [
+    "Spain",
+    "Norway",
+    "United Kingdom",
+    "Ireland",
+    "Finland",
+    "Sweden",
+    "Belgium",
+    "Netherlands",
+    "Germany",
+    "Denmark",
+    "Poland",
+    "France",
+    "Italy",
+    "Portugal",
+    "Estonia",
+    "Lithuania",
+    "Latvia",
+    "Croatia",
+    "Romania",
+    "Slovenia",
+    "Greece",
+    "Turkey",
+    "Malta",
+    "Albania",
+    "Bulgaria",
+]
 
 # Create a dictionary that maps country codes to country names
 country_dict = dict(zip(country_codes, countries_list))
@@ -63,6 +115,7 @@ regrid_file_pr = "/home/users/benhutch/ERA5/global_regrid_sel_region_var228.nc"
 # regrid file for for other variables
 regrid_file = "/home/users/benhutch/ERA5/global_regrid_sel_region.nc"
 
+era5_msl_path = "~/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc"
 
 # define the uk grid from Clarke et al. 2017
 uk_grid = {"lon1": -10, "lon2": 3, "lat1": 50, "lat2": 60}
@@ -73,3 +126,9 @@ north_sea_kay = {
     "lat1": 53,  # degrees north
     "lat2": 59,
 }
+
+# Define the dimensions for the gridbox for the azores
+azores_grid_corrected = {"lon1": -28, "lon2": -20, "lat1": 36, "lat2": 40}
+
+# Define the dimensions for the gridbox for the azores
+iceland_grid_corrected = {"lon1": -25, "lon2": -16, "lat1": 63, "lat2": 70}
