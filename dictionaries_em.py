@@ -132,3 +132,60 @@ azores_grid_corrected = {"lon1": -28, "lon2": -20, "lat1": 36, "lat2": 40}
 
 # Define the dimensions for the gridbox for the azores
 iceland_grid_corrected = {"lon1": -25, "lon2": -16, "lat1": 63, "lat2": 70}
+
+iso_mapping = {
+    "ES": "ESP",
+    "NO": "NOR",
+    "UK": "GBR",
+    "IE": "IRL",
+    "FI": "FIN",
+    "SE": "SWE",
+    "BE": "BEL",
+    "NL": "NLD",
+    "DE": "DEU",
+    "DK": "DNK",
+    "PO": "POL",
+    "FR": "FRA",
+    "IT": "ITA",
+    "PT": "PRT",
+    "EE": "EST",
+    "LI": "LIE",
+    "LV": "LVA",
+    "HR": "HRV",
+    "RO": "ROU",
+    "GR": "GRC",
+    "TR": "TUR",
+    "MT": "MLT",
+    "AL": "ALB",
+    "BG": "BGR",
+    # Add the rest of your mapping here
+}
+
+countries = [
+    "ES",
+    "NO",
+    "UK",
+    "IE",
+    "FI",
+    "SE",
+    "BE",
+    "NL",
+    "DE",
+    "DK",
+    "PO",
+    "FR",
+    "IT",
+    "PT",
+    "EE",
+    "LI",
+    "LV",
+    "HR",
+    "RO",
+    "GR",
+    "TR",
+    "MT",
+    "AL",
+    "BG",
+]
+
+iso_sov1 = [iso_mapping[country] for country in countries]
