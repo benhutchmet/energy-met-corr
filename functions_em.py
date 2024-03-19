@@ -1611,15 +1611,19 @@ def correlate_nao_uread(
 
             # test the function
             eez_mask_poly = regionmask.from_geopandas(
-                shapefile, names="GEONAME", abbrevs="ISO_SOV1", numbers="numbers"
+                shapefile,
+                names="GEONAME",
+                abbrevs="ISO_SOV1",
+                numbers="numbers",
             )
 
             # Create a mask to apply to the gridded dataset
-            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
+            clim_var_anomaly_subset = clim_var_anomaly
 
             # Create the eez mask
             eez_mask = eez_mask_poly.mask(
-                clim_var_anomaly_subset["lon"], clim_var_anomaly_subset["lat"]
+                clim_var_anomaly_subset["lon"],
+                clim_var_anomaly_subset["lat"],
             )
 
             # Create a dataframe
@@ -1629,15 +1633,18 @@ def correlate_nao_uread(
             lat = eez_mask.lat.values
             lon = eez_mask.lon.values
 
-            # Loop over the regions
-            for i in tqdm(range(len(shapefile))):
-                # Add a new column to the dataframe
-                df_ts[shapefile["ISO_SOV1"].iloc[i]] = np.nan
+            # Set up the n_flags
+            n_flags = len(eez_mask.attrs["flag_values"])
 
-                # Print the region
-                print(
-                    f"Calculating correlation for region: {shapefile['ISO_SOV1'].iloc[i]}"
-                )
+            # Loop over the regions
+            for i in tqdm((range(n_flags))):
+                # Add a new column to the dataframe
+                df_ts[eez_mask.attrs["flag_meanings"].split(" ")[i]] = np.nan
+
+                # # Print the region
+                # print(
+                #     f"Calculating correlation for region: {eez_mask.attrs['flag_meanings'].split(' ')[i]}"
+                # )
 
                 # Extract the mask for the region
                 sel_mask = eez_mask.where(eez_mask == i).values
@@ -1647,6 +1654,14 @@ def correlate_nao_uread(
 
                 # Set up the lat indices
                 id_lat = lat[np.where(~np.all(np.isnan(sel_mask), axis=1))]
+
+                # If the length of id_lon is 0 and the length of id_lat is 0
+                if len(id_lon) == 0 and len(id_lat) == 0:
+                    print(
+                        f"Region {eez_mask.attrs['flag_meanings'].split(' ')[i]} is empty."
+                    )
+                    print("Continuing to the next region.")
+                    continue
 
                 # Select the region from the anoms
                 out_sel = (
@@ -1662,13 +1677,117 @@ def correlate_nao_uread(
                 out_sel = out_sel.mean(dim=["lat", "lon"])
 
                 # Add this to the dataframe
-                df_ts[shapefile["ISO_SOV1"].iloc[i]] = out_sel.values
+                df_ts[eez_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel.values
 
-            # Print that testing is complete
-            print("Testing is complete.")
+            # Take the central rolling average
+            df_ts = (
+                df_ts.set_index("time")
+                .rolling(window=rolling_window, center=centre)
+                .mean()
+            )
 
-            # Exit
-            sys.exit()
+            # modify each of the column names to include '_si10'
+            # at the end of the string
+            df_ts.columns = [
+                f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
+            ]
+
+            # pRINT THE column names
+            print("Column names df_ts: ", df_ts.columns)
+
+            # print the shape of df_ts
+            print("Shape of df_ts: ", df_ts.shape)
+
+            # Print df_ts head
+            print("df_ts head: ", df_ts.head())
+
+            # Drop the first rolling_window/2 rows
+            df_ts = df_ts.iloc[int(rolling_window / 2) :]
+
+            # join the dataframes
+            merged_df = df.join(df_ts, how="inner")
+
+            # Print merged df
+            print("Merged df before NaN removed: ", merged_df.head())
+
+            # # Drop the NaN values
+            # merged_df = merged_df.dropna()
+
+            # Print merged df
+            print("Merged df: after Nan removed ", merged_df.head())
+
+            # Print the column names in merged df
+            print("Column names in merged df: ", merged_df.columns)
+
+            # Create a new dataframe for the correlations
+            corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+            # Find the length of the merged_df.columns which don't contain "Si10"
+            n_cols = len(
+                [
+                    col
+                    for col in merged_df.columns
+                    if obs_var not in col and "time" not in col
+                ]
+            )
+
+            # print ncols
+            print("Number of columns: ", n_cols)
+
+            # Loop over the columns
+            for i in tqdm(range(n_cols)):
+                # Extract the column
+                col = merged_df.columns[i]
+
+                # Convert col to iso bname
+                col_iso = dicts.iso_mapping[col]
+
+                # If merged_df[f"{col_iso}_{obs_var}"] doesn't exist
+                # Then create this
+                # and fill with NaN values
+                if f"{col_iso}_{obs_var}" not in merged_df.columns:
+                    merged_df[f"{col_iso}_{obs_var}"] = np.nan
+
+                # Check whether the length of the column is 4
+                assert (
+                    len(merged_df[col]) >= 2
+                ), f"The length of the column is less than 2 for {col}"
+
+                # Same check for the other one
+                assert (
+                    len(merged_df[f"{col_iso}_{obs_var}"]) >= 2
+                ), f"The length of the column is less than 2 for {col_iso}_{obs_var}"
+
+                # If merged_df[f"{col_iso}_{obs_var}"] contains NaN values
+                # THEN fill the corr and pval with NaN
+                if merged_df[f"{col_iso}_{obs_var}"].isnull().values.any():
+                    corr = np.nan
+                    pval = np.nan
+
+                    # Append to the dataframe
+                    corr_df_to_append = pd.DataFrame(
+                        {"region": [col], "correlation": [corr], "p-value": [pval]}
+                    )
+
+                    # Append to the dataframe
+                    corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+                    # continue to the next iteration
+                    continue
+
+                # Calculate corr between wind power (GW) and wind speed
+                corr, pval = pearsonr(merged_df[col], merged_df[f"{col_iso}_{obs_var}"])
+
+                # Append to the dataframe
+                corr_df_to_append = pd.DataFrame(
+                    {"region": [col], "correlation": [corr], "p-value": [pval]}
+                )
+
+                # Append to the dataframe
+                corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+            # Return the dataframe
+            return merged_df, corr_df
 
         else:
             NotImplementedError(
