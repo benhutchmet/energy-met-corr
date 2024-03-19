@@ -1615,9 +1615,7 @@ def correlate_nao_uread(
             )
 
             # Create a mask to apply to the gridded dataset
-            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0).sel(
-                lat=slice(32, 75), lon=slice(-30, 50)
-            )
+            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
 
             # Create the eez mask
             eez_mask = eez_mask_poly.mask(
@@ -1625,16 +1623,21 @@ def correlate_nao_uread(
             )
 
             # Create a dataframe
-            df_ts = pd.DataFrame({"time": clim_var_anomaly_subset.time.values})
+            df_ts = pd.DataFrame({"time": clim_var_anomaly.time.values})
 
             # Extract the lat and lons for the mask
             lat = eez_mask.lat.values
             lon = eez_mask.lon.values
 
             # Loop over the regions
-            for i in tqdm(range(0, len(shapefile.rows))):
+            for i in tqdm(range(len(shapefile))):
                 # Add a new column to the dataframe
                 df_ts[shapefile["ISO_SOV1"].iloc[i]] = np.nan
+
+                # Print the region
+                print(
+                    f"Calculating correlation for region: {shapefile['ISO_SOV1'].iloc[i]}"
+                )
 
                 # Extract the mask for the region
                 sel_mask = eez_mask.where(eez_mask == i).values
@@ -1647,7 +1650,7 @@ def correlate_nao_uread(
 
                 # Select the region from the anoms
                 out_sel = (
-                    clim_var_anomaly_subset.sel(
+                    clim_var_anomaly.sel(
                         lat=slice(id_lat[0], id_lat[-1]),
                         lon=slice(id_lon[0], id_lon[-1]),
                     )
