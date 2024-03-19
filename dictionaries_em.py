@@ -133,6 +133,12 @@ azores_grid_corrected = {"lon1": -28, "lon2": -20, "lat1": 36, "lat2": 40}
 # Define the dimensions for the gridbox for the azores
 iceland_grid_corrected = {"lon1": -25, "lon2": -16, "lat1": 63, "lat2": 70}
 
+# Define this but corrected
+uk_n_box_corrected = {"lon1": -27, "lon2": 21, "lat1": 57, "lat2": 70}
+
+# Define this but corrected
+uk_s_box_corrected = {"lon1": -27, "lon2": 21, "lat1": 38, "lat2": 51}
+
 iso_mapping = {
     "ES": "ESP",
     "NO": "NOR",
@@ -158,8 +164,40 @@ iso_mapping = {
     "MT": "MLT",
     "AL": "ALB",
     "BG": "BGR",
+    "SI": "SVN",
     # Add the rest of your mapping here
 }
+
+# EEZ countries to aggregate
+eez_agg_countries = [
+    "GBR",
+    "NOR",
+    "SWE",
+    "FIN",
+    "DNK",
+    "DEU",
+    "NLD",
+    "BEL",
+    "EST",
+    "LVA",
+    "POL",
+]
+
+# Full names of these countries
+eez_agg_countries_full_names = [
+    "United Kingdom",
+    "Norway",
+    "Sweden",
+    "Finland",
+    "Denmark",
+    "Germany",
+    "Netherlands",
+    "Belgium",
+    "Estonia",
+    "Latvia",
+    "Lithuania",
+    "Poland",
+]
 
 countries = [
     "ES",
@@ -189,3 +227,6 @@ countries = [
 ]
 
 iso_sov1 = [iso_mapping[country] for country in countries]
+
+# Set up a northern europe grid box
+northern_europe_grid = {"lon1": -10, "lon2": 25, "lat1": 55, "lat2": 70}

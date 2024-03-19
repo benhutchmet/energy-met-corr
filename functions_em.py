@@ -21,6 +21,8 @@ import cartopy.feature as cfeature
 from tqdm import tqdm
 from scipy.stats import pearsonr, linregress, t
 from datetime import datetime
+import geopandas as gpd
+import regionmask
 
 # Import local modules
 import dictionaries_em as dicts
@@ -1309,6 +1311,8 @@ def plot_scatter(
 # Within a specific region as defined by the UREAD file being extracted
 def correlate_nao_uread(
     filename: str,
+    shp_file: str = None,
+    shp_file_dir: str = None,
     forecast_range: str = "2-9",
     months: list = [10, 11, 12, 1, 2, 3],
     annual_offset: int = 3,
@@ -1332,6 +1336,12 @@ def correlate_nao_uread(
 
     filename: str
         The filename to use for extracting the UREAD data.
+
+    shp_file: str
+        The shapefile to use for extracting the UREAD data.
+
+    shp_file_dir: str
+        The directory to use for extracting the UREAD data.
 
     forecast_range: str
         The forecast range to use for extracting the UREAD data.
@@ -1482,65 +1492,146 @@ def correlate_nao_uread(
     # Remove the climatology
     clim_var_anomaly = clim_var_annual - clim_var_annual.mean(dim="time")
 
-    # Extract the lat and lons of iceland
-    lat1_n, lat2_n = nao_n_grid["lat1"], nao_n_grid["lat2"]
-    lon1_n, lon2_n = nao_n_grid["lon1"], nao_n_grid["lon2"]
+    # If the obs var is "msl"
+    if obs_var == "msl":
+        # Print that we are using msl and calculating the NAO index
+        print("Using mean sea level pressure to calculate the NAO index.")
 
-    # Extract the lat and lons of the azores
-    lat1_s, lat2_s = nao_s_grid["lat1"], nao_s_grid["lat2"]
-    lon1_s, lon2_s = nao_s_grid["lon1"], nao_s_grid["lon2"]
+        # Extract the lat and lons of iceland
+        lat1_n, lat2_n = nao_n_grid["lat1"], nao_n_grid["lat2"]
+        lon1_n, lon2_n = nao_n_grid["lon1"], nao_n_grid["lon2"]
 
-    # Calculate the msl mean for the icealndic region
-    msl_mean_n = clim_var_anomaly.sel(
-        lat=slice(lat1_n, lat2_n), lon=slice(lon1_n, lon2_n)
-    ).mean(dim=["lat", "lon"])
+        # Extract the lat and lons of the azores
+        lat1_s, lat2_s = nao_s_grid["lat1"], nao_s_grid["lat2"]
+        lon1_s, lon2_s = nao_s_grid["lon1"], nao_s_grid["lon2"]
 
-    # Calculate the msl mean for the azores region
-    msl_mean_s = clim_var_anomaly.sel(
-        lat=slice(lat1_s, lat2_s), lon=slice(lon1_s, lon2_s)
-    ).mean(dim=["lat", "lon"])
+        # Calculate the msl mean for the icealndic region
+        msl_mean_n = clim_var_anomaly.sel(
+            lat=slice(lat1_n, lat2_n), lon=slice(lon1_n, lon2_n)
+        ).mean(dim=["lat", "lon"])
 
-    # Calculate the NAO index (azores - iceland)
-    nao_index = msl_mean_s - msl_mean_n
+        # Calculate the msl mean for the azores region
+        msl_mean_s = clim_var_anomaly.sel(
+            lat=slice(lat1_s, lat2_s), lon=slice(lon1_s, lon2_s)
+        ).mean(dim=["lat", "lon"])
 
-    # Extract the time values
-    time_values = nao_index.time.values
+        # Calculate the NAO index (azores - iceland)
+        nao_index = msl_mean_s - msl_mean_n
 
-    # Extract the values
-    nao_values = nao_index.values
+        # Extract the time values
+        time_values = nao_index.time.values
 
-    # Create a dataframe for the NAO data
-    nao_df = pd.DataFrame({"time": time_values, "NAO anomaly (Pa)": nao_values})
+        # Extract the values
+        nao_values = nao_index.values
 
-    # Take a central rolling average
-    nao_df = (
-        nao_df.set_index("time").rolling(window=rolling_window, center=centre).mean()
-    )
+        # Create a dataframe for the NAO data
+        nao_df = pd.DataFrame({"time": time_values, "NAO anomaly (Pa)": nao_values})
 
-    # Drop the NaN values
-    nao_df = nao_df.dropna()
-
-    # Merge the dataframes, using the index of the first
-    merged_df = df.join(nao_df, how="inner")
-
-    # Drop the NaN values
-    merged_df = merged_df.dropna()
-
-    # Create a new dataframe for the correlations
-    corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
-
-    # Loop over the columns
-    for col in merged_df.columns[:-1]:
-        # Calculate the correlation
-        corr, pval = pearsonr(merged_df[col], merged_df["NAO anomaly (Pa)"])
-
-        # Append to the dataframe
-        corr_df_to_append = pd.DataFrame(
-            {"region": [col], "correlation": [corr], "p-value": [pval]}
+        # Take a central rolling average
+        nao_df = (
+            nao_df.set_index("time")
+            .rolling(window=rolling_window, center=centre)
+            .mean()
         )
 
-        # Append to the dataframe
-        corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+        # Drop the NaN values
+        nao_df = nao_df.dropna()
+
+        # Merge the dataframes, using the index of the first
+        merged_df = df.join(nao_df, how="inner")
+
+        # Drop the NaN values
+        merged_df = merged_df.dropna()
+
+        # Create a new dataframe for the correlations
+        corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+        # Loop over the columns
+        for col in merged_df.columns[:-1]:
+            # Calculate the correlation
+            corr, pval = pearsonr(merged_df[col], merged_df["NAO anomaly (Pa)"])
+
+            # Append to the dataframe
+            corr_df_to_append = pd.DataFrame(
+                {"region": [col], "correlation": [corr], "p-value": [pval]}
+            )
+
+            # Append to the dataframe
+            corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+    else:
+        print("The observed variable is not mean sea level pressure.")
+        print("calculating correlation skill for gridpoint variable")
+
+        # Assert that shp_file is not None
+        assert shp_file is not None, "The shapefile is None."
+
+        # Assert that shp_file_dir is not None
+        assert shp_file_dir is not None, "The shapefile directory is None."
+
+        # Assert that the shp_file_dir exists
+        assert os.path.exists(shp_file_dir), "The shapefile directory does not exist."
+
+        # Assert that the shp_file exists
+        assert os.path.exists(
+            os.path.join(shp_file_dir, shp_file)
+        ), "The shapefile does not exist."
+
+        # Load the shapefile
+        shapefile = gpd.read_file(os.path.join(shp_file_dir, shp_file))
+
+        # If the filename contains the string "eez"
+        if "eez" in shp_file:
+            print("Averaging data for EEZ domains")
+
+            # Throw away all columns
+            # Apart from "GEONAME", "ISO_SOV1", and "geometry"
+            shapefile = shapefile[["GEONAME", "ISO_SOV1", "geometry"]]
+
+            # Pass the NUTS keys through the filter
+            iso_sov_values = [dicts.iso_mapping[key] for key in NUTS_keys]
+
+            # Constrain the geo dataframe to only include these values
+            shapefile = shapefile[shapefile["ISO_SOV1"].isin(iso_sov_values)]
+
+            # Filter df to only include the rows where GEONAME includes: "Exclusive Economic Zone"
+            shapefile = shapefile[
+                shapefile["GEONAME"].str.contains("Exclusive Economic Zone")
+            ]
+
+            # Remove any rows from EEZ shapefile which contain "(*)" in the GEONAME column
+            # To limit to only Exlusive economic zones
+            shapefile = shapefile[~shapefile["GEONAME"].str.contains(r"\(.*\)")]
+
+            # Print the shape of clim_var_anomaly
+            print("Shape of clim_var_anomaly: ", clim_var_anomaly.shape)
+
+            # Calculate the mask
+            # CALCULATE MASK
+            eez_mask_poly = regionmask.Regions_cls(
+                name="eez_mask",
+                numbers=list(range(0, len(shapefile.rows))),
+                names=list(shapefile.GEONAME),
+                abbrevs=list(shapefile.ISO_SOV1),
+                outlines=list(
+                    shapefile.geometry.values[i] for i in range(0, len(shapefile.rows))
+                ),
+            )
+
+            print(eez_mask_poly)
+
+            # # Create a new dataframe for the time series
+            # ts_df = pd.DataFrame({"time": clim_var_anomaly.time.values})
+
+            # # Loop over the ISO_SOV1 values
+            # for iso_sov1 in shapefile["ISO_SOV1"].values:
+            #     # Add the iso_sov1 to the dataframe
+            #     # as a new column
+            #     ts_df[iso_sov1] = np.nan
+
+        else:
+            NotImplementedError(
+                "This function is not yet implemented for non-EEZ domains."
+            )
 
     # Return the dataframe
     return merged_df, corr_df
