@@ -1607,26 +1607,65 @@ def correlate_nao_uread(
 
             # Calculate the mask
             # CALCULATE MASK
-            eez_mask_poly = regionmask.Regions_cls(
-                name="eez_mask",
-                numbers=list(range(0, len(shapefile.rows))),
-                names=list(shapefile.GEONAME),
-                abbrevs=list(shapefile.ISO_SOV1),
-                outlines=list(
-                    shapefile.geometry.values[i] for i in range(0, len(shapefile.rows))
-                ),
+            shapefile["numbers"] = range(len(shapefile))
+
+            # test the function
+            eez_mask_poly = regionmask.from_geopandas(
+                shapefile, names="GEONAME", abbrevs="ISO_SOV1", numbers="numbers"
             )
 
-            print(eez_mask_poly)
+            # Create a mask to apply to the gridded dataset
+            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0).sel(
+                lat=slice(32, 75), lon=slice(-30, 50)
+            )
 
-            # # Create a new dataframe for the time series
-            # ts_df = pd.DataFrame({"time": clim_var_anomaly.time.values})
+            # Create the eez mask
+            eez_mask = eez_mask_poly.mask(
+                clim_var_anomaly_subset["lon"], clim_var_anomaly_subset["lat"]
+            )
 
-            # # Loop over the ISO_SOV1 values
-            # for iso_sov1 in shapefile["ISO_SOV1"].values:
-            #     # Add the iso_sov1 to the dataframe
-            #     # as a new column
-            #     ts_df[iso_sov1] = np.nan
+            # Create a dataframe
+            df_ts = pd.DataFrame({"time": clim_var_anomaly_subset.time.values})
+
+            # Extract the lat and lons for the mask
+            lat = eez_mask.lat.values
+            lon = eez_mask.lon.values
+
+            # Loop over the regions
+            for i in tqdm(range(0, len(shapefile.rows))):
+                # Add a new column to the dataframe
+                df_ts[shapefile["ISO_SOV1"].iloc[i]] = np.nan
+
+                # Extract the mask for the region
+                sel_mask = eez_mask.where(eez_mask == i).values
+
+                # Set up the lon indices
+                id_lon = lon[np.where(~np.all(np.isnan(sel_mask), axis=0))]
+
+                # Set up the lat indices
+                id_lat = lat[np.where(~np.all(np.isnan(sel_mask), axis=1))]
+
+                # Select the region from the anoms
+                out_sel = (
+                    clim_var_anomaly_subset.sel(
+                        lat=slice(id_lat[0], id_lat[-1]),
+                        lon=slice(id_lon[0], id_lon[-1]),
+                    )
+                    .compute()
+                    .where(eez_mask == i)
+                )
+
+                # Group this into a mean
+                out_sel = out_sel.mean(dim=["lat", "lon"])
+
+                # Add this to the dataframe
+                df_ts[shapefile["ISO_SOV1"].iloc[i]] = out_sel.values
+
+            # Print that testing is complete
+            print("Testing is complete.")
+
+            # Exit
+            sys.exit()
 
         else:
             NotImplementedError(
