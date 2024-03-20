@@ -1922,7 +1922,7 @@ def correlate_nao_uread(
             NotImplementedError(
                 "This function is not yet implemented for NUTS regions."
             )
-        else:
+        elif use_model_data is False:
             print("Averaging over specified gridbox")
 
             # assert that avg_grid is not none
@@ -1981,6 +1981,16 @@ def correlate_nao_uread(
 
                 # Append to the dataframe
                 corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+        elif use_model_data is True:
+            print(
+                "Extracting the stored gridbox averaged variable data for the specified box"
+            )
+
+            # TODO: finish off this function here
+            # Set up the filename for the data
+            # in the format:
+        else:
+            raise ValueError("The shapefile is not recognised.")
 
     # Return the dataframe
     return merged_df, corr_df
