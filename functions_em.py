@@ -1567,7 +1567,7 @@ def correlate_nao_uread(
         print("calculating correlation skill for gridpoint variable")
 
         # If the filename contains the string "eez"
-        if "eez" in shp_file:
+        if shp_file is not None and "eez" in shp_file:
             print("Averaging data for EEZ domains")
 
             # Assert that shp_file is not None
@@ -1800,7 +1800,7 @@ def correlate_nao_uread(
 
             # Return the dataframe
             return merged_df, corr_df, shapefile
-        elif "NUTS" in shp_file:
+        elif shp_file is not None and "NUTS" in shp_file:
             print("Averaging data for NUTS regions")
 
             NotImplementedError(
