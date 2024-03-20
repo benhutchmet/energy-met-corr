@@ -1326,6 +1326,7 @@ def correlate_nao_uread(
     end_year: str = "2019",
     nao_n_grid: dict = dicts.iceland_grid_corrected,
     nao_s_grid: dict = dicts.azores_grid_corrected,
+    avg_grid: dict = None,
 ) -> pd.DataFrame:
     """
     Function which correlates the observed NAO (from ERA5) with demand,
@@ -1387,6 +1388,9 @@ def correlate_nao_uread(
 
     nao_s_grid: dict
         The dictionary containing the grid information for the southern NAO grid.
+
+    avg_grid: dict
+        The dictionary containing the grid information for the average grid.
 
     Returns:
 
@@ -1562,26 +1566,28 @@ def correlate_nao_uread(
         print("The observed variable is not mean sea level pressure.")
         print("calculating correlation skill for gridpoint variable")
 
-        # Assert that shp_file is not None
-        assert shp_file is not None, "The shapefile is None."
-
-        # Assert that shp_file_dir is not None
-        assert shp_file_dir is not None, "The shapefile directory is None."
-
-        # Assert that the shp_file_dir exists
-        assert os.path.exists(shp_file_dir), "The shapefile directory does not exist."
-
-        # Assert that the shp_file exists
-        assert os.path.exists(
-            os.path.join(shp_file_dir, shp_file)
-        ), "The shapefile does not exist."
-
-        # Load the shapefile
-        shapefile = gpd.read_file(os.path.join(shp_file_dir, shp_file))
-
         # If the filename contains the string "eez"
         if "eez" in shp_file:
             print("Averaging data for EEZ domains")
+
+            # Assert that shp_file is not None
+            assert shp_file is not None, "The shapefile is None."
+
+            # Assert that shp_file_dir is not None
+            assert shp_file_dir is not None, "The shapefile directory is None."
+
+            # Assert that the shp_file_dir exists
+            assert os.path.exists(
+                shp_file_dir
+            ), "The shapefile directory does not exist."
+
+            # Load the shapefile
+            shapefile = gpd.read_file(os.path.join(shp_file_dir, shp_file))
+
+            # Assert that the shp_file exists
+            assert os.path.exists(
+                os.path.join(shp_file_dir, shp_file)
+            ), "The shapefile does not exist."
 
             # Throw away all columns
             # Apart from "GEONAME", "ISO_SOV1", and "geometry"
@@ -1618,7 +1624,7 @@ def correlate_nao_uread(
             )
 
             # Create a mask to apply to the gridded dataset
-            clim_var_anomaly_subset = clim_var_anomaly
+            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
 
             # Create the eez mask
             eez_mask = eez_mask_poly.mask(
@@ -1642,9 +1648,9 @@ def correlate_nao_uread(
                 df_ts[eez_mask.attrs["flag_meanings"].split(" ")[i]] = np.nan
 
                 # # Print the region
-                # print(
-                #     f"Calculating correlation for region: {eez_mask.attrs['flag_meanings'].split(' ')[i]}"
-                # )
+                print(
+                    f"Calculating correlation for region: {eez_mask.attrs['flag_meanings'].split(' ')[i]}"
+                )
 
                 # Extract the mask for the region
                 sel_mask = eez_mask.where(eez_mask == i).values
@@ -1662,6 +1668,12 @@ def correlate_nao_uread(
                     )
                     print("Continuing to the next region.")
                     continue
+
+                # Print the id_lat and id_lon
+                print("id_lat[0], id_lat[-1]: ", id_lat[0], id_lat[-1])
+
+                # Print the id_lat and id_lon
+                print("id_lon[0], id_lon[-1]: ", id_lon[0], id_lon[-1])
 
                 # Select the region from the anoms
                 out_sel = (
@@ -1787,12 +1799,72 @@ def correlate_nao_uread(
                 corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
 
             # Return the dataframe
-            return merged_df, corr_df
+            return merged_df, corr_df, shapefile
+        elif "NUTS" in shp_file:
+            print("Averaging data for NUTS regions")
 
-        else:
             NotImplementedError(
-                "This function is not yet implemented for non-EEZ domains."
+                "This function is not yet implemented for NUTS regions."
             )
+        else:
+            print("Averaging over specified gridbox")
+
+            # assert that avg_grid is not none
+            assert avg_grid is not None, "The average grid is None."
+
+            # Extract the lat and lons from the avg_grid
+            lon1, lon2 = avg_grid["lon1"], avg_grid["lon2"]
+            lat1, lat2 = avg_grid["lat1"], avg_grid["lat2"]
+
+            # Calculate the mean of the clim var anomalies for this region
+            clim_var_mean = clim_var_anomaly.sel(
+                lat=slice(lat1, lat2), lon=slice(lon1, lon2)
+            ).mean(dim=["lat", "lon"])
+
+            # Extract the time values
+            time_values = clim_var_mean.time.values
+
+            # Extract the values
+            clim_var_values = clim_var_mean.values
+
+            # Create a dataframe for this data
+            clim_var_df = pd.DataFrame(
+                {"time": time_values, f"{obs_var} anomaly mean": clim_var_values}
+            )
+
+            # Take the central rolling average
+            clim_var_df = (
+                clim_var_df.set_index("time")
+                .rolling(window=rolling_window, center=centre)
+                .mean()
+            )
+
+            # Drop the NaN values
+            clim_var_df = clim_var_df.dropna()
+
+            # Merge the dataframes
+            merged_df = df.join(clim_var_df, how="inner")
+
+            # Drop the NaN values
+            merged_df = merged_df.dropna()
+
+            # Create a new dataframe for the correlations
+            corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+            # Loop over the columns
+            for col in merged_df.columns[:-1]:
+                # Calculate the correlation
+                corr, pval = pearsonr(
+                    merged_df[col], merged_df[f"{obs_var} anomaly mean"]
+                )
+
+                # Append to the dataframe
+                corr_df_to_append = pd.DataFrame(
+                    {"region": [col], "correlation": [corr], "p-value": [pval]}
+                )
+
+                # Append to the dataframe
+                corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
 
     # Return the dataframe
     return merged_df, corr_df
