@@ -1327,6 +1327,9 @@ def correlate_nao_uread(
     nao_n_grid: dict = dicts.iceland_grid_corrected,
     nao_s_grid: dict = dicts.azores_grid_corrected,
     avg_grid: dict = None,
+    use_model_data: bool = False,
+    model_config: dict = None,
+    df_dir: str = "/gws/nopw/j04/canari/users/benhutch/nao_stats_df/",
 ) -> pd.DataFrame:
     """
     Function which correlates the observed NAO (from ERA5) with demand,
@@ -1391,6 +1394,15 @@ def correlate_nao_uread(
 
     avg_grid: dict
         The dictionary containing the grid information for the average grid.
+
+    use_model_data
+        Whether to use model data or not.
+
+    model_config
+        The set up of the model used
+
+    df_dir
+        The directory in which the dataframes are stored for the model data
 
     Returns:
 
@@ -1497,7 +1509,7 @@ def correlate_nao_uread(
     clim_var_anomaly = clim_var_annual - clim_var_annual.mean(dim="time")
 
     # If the obs var is "msl"
-    if obs_var == "msl":
+    if obs_var == "msl" and use_model_data is False:
         # Print that we are using msl and calculating the NAO index
         print("Using mean sea level pressure to calculate the NAO index.")
 
@@ -1562,6 +1574,110 @@ def correlate_nao_uread(
 
             # Append to the dataframe
             corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+    elif obs_var == "msl" and use_model_data is True:
+        print("Extracting the stored NAO data from the model data.")
+
+        # set up the file name using model config
+        model_filename = f"""{model_config["variable"]}_{model_config["season"]}_{model_config["region"]}_{model_config["start_year"]}_{model_config["end_year"]}_{model_config["forecast_range"]}_{model_config['lag']}_{model_config['nao']}.csv"""
+
+        # Set up the path to the file
+        filepath = f"{df_dir}{model_filename}"
+
+        # assert that the file exists
+        assert os.path.exists(filepath), "The file does not exist."
+
+        # print the filepath
+        print("Filepath: ", filepath)
+
+        # Load the dataframe
+        df_model_nao = pd.read_csv(filepath)
+
+        # process the observations
+        # Extract the lat and lons of iceland
+        lat1_n, lat2_n = nao_n_grid["lat1"], nao_n_grid["lat2"]
+        lon1_n, lon2_n = nao_n_grid["lon1"], nao_n_grid["lon2"]
+
+        # Extract the lat and lons of the azores
+        lat1_s, lat2_s = nao_s_grid["lat1"], nao_s_grid["lat2"]
+        lon1_s, lon2_s = nao_s_grid["lon1"], nao_s_grid["lon2"]
+
+        # Calculate the msl mean for the icealndic region
+        msl_mean_n = clim_var_anomaly.sel(
+            lat=slice(lat1_n, lat2_n), lon=slice(lon1_n, lon2_n)
+        ).mean(dim=["lat", "lon"])
+
+        # Calculate the msl mean for the azores region
+        msl_mean_s = clim_var_anomaly.sel(
+            lat=slice(lat1_s, lat2_s), lon=slice(lon1_s, lon2_s)
+        ).mean(dim=["lat", "lon"])
+
+        # Calculate the NAO index (azores - iceland)
+        nao_index = msl_mean_s - msl_mean_n
+
+        # Extract the time values
+        time_values = nao_index.time.values
+
+        # Extract the values
+        nao_values = nao_index.values
+
+        # Create a dataframe for the NAO data
+        nao_df = pd.DataFrame({"time": time_values, "NAO anomaly (Pa)": nao_values})
+
+        # Take a central rolling average
+        nao_df = (
+            nao_df.set_index("time")
+            .rolling(window=rolling_window, center=centre)
+            .mean()
+        )
+
+        # Drop the NaN values
+        nao_df = nao_df.dropna()
+
+        # Set the year as the index
+        nao_df.index = nao_df.index.year
+
+        # Set the index for the loaded data as valid_time
+        df_model_nao = df_model_nao.set_index("valid_time")
+
+        # join the two dataframes
+        merged_df = df_model_nao.join(nao_df)
+
+        # Set the volumn with the name value to obs_nao_pd
+        merged_df = merged_df.rename(columns={"value": "obs_nao_pd"})
+
+        # Print the head of this df
+        print("Head of merged_df: ", merged_df.head())
+
+        # For rthe uread dataset, set the index to years
+        df.index = df.index.year
+
+        # print the head of the UREAD df
+        print("Head of UREAD df: ", df.head())
+
+        # merge with the CF data
+        merged_df_full = df.join(merged_df, how="inner")
+
+        # print the head of the merged
+        print(merged_df_full.head())
+
+        # Create a new dataframe for the correlations
+        corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+        # Loop over the columns
+        for col in merged_df_full.columns[:-6]:
+            # Calculate the correlation
+            corr, pval = pearsonr(merged_df_full[col], merged_df_full["model_nao_mean"])
+
+            # Append to the dataframe
+            corr_df_to_append = pd.DataFrame(
+                {"region": [col], "correlation": [corr], "p-value": [pval]}
+            )
+
+            # Append to the dataframe
+            corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+        return df, merged_df, merged_df_full, corr_df
+
     else:
         print("The observed variable is not mean sea level pressure.")
         print("calculating correlation skill for gridpoint variable")
