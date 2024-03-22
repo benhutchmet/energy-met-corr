@@ -1436,12 +1436,18 @@ def correlate_nao_uread(
     # Turn this data into a dataframe
     df = data.to_dataframe()
 
+    # # Print the head of the dataframe
+    # print("Head of the dataframe: ", df.head())
+
     # Pivot the dataframe
     df = df.reset_index().pivot(
         index="time_in_hours_from_first_jan_1950",
         columns="NUTS",
         values="timeseries_data",
     )
+
+    # # Print the head of the dataframe again
+    # print("Head of the dataframe: ", df.head())
 
     # Add the nuts keys to the columns
     df.columns = NUTS_keys
@@ -1471,6 +1477,9 @@ def correlate_nao_uread(
 
     # Calculate the rolling window
     rolling_window = (ff_year - lf_year) + 1  # e.g. (9-2) + 1 = 8
+
+    # # Print the first 10 rows of the dataframe
+    # print("First 10 rows of the dataframe: ", df.head(10))
 
     # Take the rolling average
     df = df.rolling(window=rolling_window, center=centre).mean()
@@ -1552,6 +1561,12 @@ def correlate_nao_uread(
 
         # Drop the NaN values
         nao_df = nao_df.dropna()
+
+        # Print the head of nao_df
+        print("NAO df head: ", nao_df.head())
+
+        # Print the head of df
+        print("df head: ", df.head())
 
         # Merge the dataframes, using the index of the first
         merged_df = df.join(nao_df, how="inner")
