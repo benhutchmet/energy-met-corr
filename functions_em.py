@@ -1989,6 +1989,57 @@ def correlate_nao_uread(
             # TODO: finish off this function here
             # Set up the filename for the data
             # in the format:
+            model_filename = f"""{model_config["variable"]}_{model_config["region"]}_{model_config["season"]}_{model_config["forecast_range"]}_{model_config["start_year"]}_{model_config["end_year"]}_{model_config["lag"]}_{model_config["gridbox"]}_{model_config["method"]}.csv"""
+
+            # Print the filename
+            print("Model filename: ", model_filename)
+
+            # Set up the filepath
+            filepath = f"{df_dir}{model_filename}"
+
+            # Asser that the filepath exists
+            assert os.path.exists(filepath), f"The filepath: {filepath} does not exist."
+
+            # Load the dataframe
+            df_model = pd.read_csv(filepath)
+
+            # Set the index for the loaded data as valid time
+            df_model = df_model.set_index("valid_years")
+
+            # Set the df index as the year
+            df.index = df.index.year
+
+            # # Print the head of the df_model dataframe
+            # print("Head of df_model: ", df_model.head())
+
+            # # Print the head of the UREAD data
+            # print("Head of UREAD data: ", df.head())
+
+            # Try to join the two datadrames
+            try:
+                merged_df = df.join(df_model, how="inner")
+            except Exception as e:
+                print("Error: ", e)
+
+            # Create a new dataframe for the correlations
+            corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+            # Loop over the columns
+            for col in merged_df.columns[:-6]:
+                # Calculate the correlation
+                corr, pval = pearsonr(merged_df[col], merged_df["fcst_ts_mean"])
+
+                # Append to the dataframe
+                corr_df_to_append = pd.DataFrame(
+                    {"region": [col], "correlation": [corr], "p-value": [pval]}
+                )
+
+                # Append to the dataframe
+                corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+            # Return these dfs
+            return df, df_model, merged_df, corr_df
+
         else:
             raise ValueError("The shapefile is not recognised.")
 
