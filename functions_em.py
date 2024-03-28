@@ -2488,12 +2488,14 @@ def plot_calib_corr(
     plt.text(
         0.05,
         0.95,
-        f"Corr: {round(corr, 2)}\n p-value: {round(p_val, 2)}",
+        f"Corr: {round(corr, 2)}\n p-value: {round(p_val, 3)}",
         horizontalalignment="left",
         verticalalignment="top",
         transform=plt.gca().transAxes,
         bbox=dict(facecolor="white", alpha=0.5),
     )
+
+    print(p_val)
 
     # Include a horixzontal black dashed line at y=0
     plt.axhline(0, color="black", linestyle="--")
