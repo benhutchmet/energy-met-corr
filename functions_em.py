@@ -2252,8 +2252,8 @@ def calc_model_nao_gridbox_var_corr(
     obs_var_data_path: str = dicts.regrid_file,
     obs_start_year: str = "1960",
     obs_end_year: str = "2023",
-    coeff_dir: str = "/home/users/benhutch/energy-met-corr/corrs",
-    coeff_fname: str = "offshore_wind_NAO_correlations_EEZ.csv",
+    coeff_dir: str = "/home/users/benhutch/energy-met-corr/coeffs",
+    coeff_fname: str = "nao_pr_scandi_slope.csv",
 ) -> pd.DataFrame:
     """
     Forms a dataframe containing the model NAO (or model delta P)
@@ -2373,5 +2373,135 @@ def calc_model_nao_gridbox_var_corr(
     # Drop the NaN values
     clim_var_df = clim_var_df.dropna()
 
-    # return the dataframes
-    return nao_df, clim_var_df
+    # Extract the time axis index to only include the years
+    clim_var_df.index = clim_var_df.index.year
+
+    # Join the two dataframes
+    df = nao_df.join(clim_var_df, how="inner")
+
+    # Assuming df is your DataFrame and "var228 anomaly mean" is the column you want to convert
+    if "var228 anomaly mean" in df.columns:
+        df["var228 anomaly mean"] = df["var228 anomaly mean"] * 1000
+
+    # Convert NAO columns to hPa
+    df["obs_nao"] = df["obs_nao"] / 100
+    df["model_nao_mean"] = df["model_nao_mean"] / 100
+    df["model_nao_members_min"] = df["model_nao_members_min"] / 100
+    df["model_nao_members_max"] = df["model_nao_members_max"] / 100
+    df["NAO anomaly (Pa)"] = df["NAO anomaly (Pa)"] / 100
+
+    # Create new columns
+    df["calibrated_model_nao_mean"] = np.nan
+    df["calibrated_model_nao_members_min"] = np.nan
+    df["calibrated_model_nao_members_max"] = np.nan
+
+    # print the head of the coeffs df
+    print(coeffs.head())
+
+    # Extract the slope values
+    slope = coeffs["slope"].values[0]
+    intercept = coeffs["intercept"].values[0]
+
+    # Calculate the calibrated model NAO values
+    df["calibrated_model_nao_mean"] = df["model_nao_mean"] * slope + intercept
+
+    df["calibrated_model_nao_members_min"] = (
+        df["model_nao_members_min"] * slope + intercept
+    )
+
+    df["calibrated_model_nao_members_max"] = (
+        df["model_nao_members_max"] * slope + intercept
+    )
+
+    return df
+
+
+# Define a function to plot these correlations
+def plot_calib_corr(
+    df: pd.DataFrame,
+    obs_var: str,
+    index_name: str,
+    ylabel: str,
+    figsize_x: int = 10,
+    figsize_y: int = 6,
+) -> None:
+    """
+    Plots the calibrated results for NAO variable correlations.
+
+    Args:
+    -----
+
+    df: pd.DataFrame
+        The dataframe containing the calibrated results.
+
+    obs_var: str
+        The observed variable.
+
+    index_name: str
+        The name of the index.
+
+    figsize_x: int
+        The x size of the figure.
+
+    figsize_y: int
+        The y size of the figure.
+
+    Returns:
+    --------
+
+    None
+
+    """
+
+    # Set up the figure
+    fig, ax = plt.subplots(figsize=(figsize_x, figsize_y))
+
+    # Plot the model NAO mean
+    ax.plot(
+        df.index, df["calibrated_model_nao_mean"], label=f"{index_name}", color="red"
+    )
+
+    # Plot the model NAO members min
+    ax.fill_between(
+        df.index,
+        df["calibrated_model_nao_members_min"],
+        df["calibrated_model_nao_members_max"],
+        color="red",
+        alpha=0.5,
+    )
+
+    # Plot the observed time series
+    ax.plot(df.index, df[f"{obs_var} anomaly mean"], label=f"{obs_var}", color="k")
+
+    # Set up the x-axis label
+    ax.set_xlabel("Initialization year")
+
+    # Set up the ylabel
+    ax.set_ylabel(f"{ylabel}")
+
+    # Calculate the correlation coefficients
+    corr, p_val = pearsonr(
+        df["calibrated_model_nao_mean"], df[f"{obs_var} anomaly mean"]
+    )
+
+    # Include a textbox in the top left hand corner with the corr and p values
+    plt.text(
+        0.05,
+        0.95,
+        f"Corr: {round(corr, 2)}\n p-value: {round(p_val, 2)}",
+        horizontalalignment="left",
+        verticalalignment="top",
+        transform=plt.gca().transAxes,
+        bbox=dict(facecolor="white", alpha=0.5),
+    )
+
+    # Include a horixzontal black dashed line at y=0
+    plt.axhline(0, color="black", linestyle="--")
+
+    # Include a legend
+    plt.legend(loc="upper right")
+
+    # Show the plot
+    plt.show()
+
+    return None
