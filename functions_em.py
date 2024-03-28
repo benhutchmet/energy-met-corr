@@ -599,8 +599,8 @@ def plot_corr(
     proj = ccrs.PlateCarree(central_longitude=0)
 
     # Focus on the euro-atlantic region
-    lat1_grid, lat2_grid = 20, 80
-    lon1_grid, lon2_grid = -100, 40
+    lat1_grid, lat2_grid = 30, 80
+    lon1_grid, lon2_grid = -60, 40
 
     lat1_idx_grid = np.argmin(np.abs(lats - lat1_grid))
     lat2_idx_grid = np.argmin(np.abs(lats - lat2_grid))
@@ -710,12 +710,15 @@ def plot_corr(
             # Calculate the correlation
             corr, pval = pearsonr(nao, corr_var_ts_gridbox)
 
+            # Print the p-value
+            print("pval: ", pval)
+
             # Include the correlation on the plot
             ax.text(
                 lon2,
                 lat2,
                 f"r = {corr:.2f}",
-                fontsize=8,
+                fontsize=10,
                 color="white",
                 transform=proj,
                 bbox=dict(facecolor="green", alpha=0.5, edgecolor="black"),
@@ -1598,6 +1601,9 @@ def correlate_nao_uread(
         # Set up the path to the file
         filepath = f"{df_dir}{model_filename}"
 
+        # Print the filepath
+        print("Filepath: ", filepath)
+
         # assert that the file exists
         assert os.path.exists(filepath), "The file does not exist."
 
@@ -2060,3 +2066,312 @@ def correlate_nao_uread(
 
     # Return the dataframe
     return merged_df, corr_df
+
+
+# Define a function to plot scatter for observed variables
+# To quantify the relationship between the two
+def plot_scatter_obs(
+    index: np.ndarray,
+    variable: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    index_name: str,
+    variable_name: str,
+    plot_gridbox: dict,
+    title: str = None,
+    show_eqn: bool = False,
+    figsize_x: int = 8,
+    figsize_y: int = 8,
+) -> None:
+    """
+    For a 1D observed index (time,) and a 3D observed variable array (time, lat, lon), plot the scatter plot for this, with the index
+    on the x-axis and the mean observed variable, averaged over the
+    provided gridbox, on the y-axis.
+
+    Args:
+    -----
+
+    index: np.ndarray
+        The 1D observed index array.
+
+    variable: np.ndarray
+        The 3D observed variable array.
+
+    lats: np.ndarray
+        The latitude values for the variable array.
+
+    lons: np.ndarray
+        The longitude values for the variable array.
+
+    index_name: str
+        The name of the index.
+
+    variable_name: str
+        The name of the variable.
+
+    plot_gridbox: dict
+        The dictionary containing the gridbox information to plot.
+
+    title: str
+        The title for the plot.
+
+    show_eqn: bool
+        Whether to show the equation of the regression line on the plot.
+
+    figsize_x: int
+        The x size of the figure.
+
+    figsize_y: int
+        The y size of the figure.
+
+    Returns:
+    --------
+
+    None
+    """
+
+    # Set up the figure
+    fig, ax = plt.subplots(figsize=(figsize_x, figsize_y))
+
+    # Assert that a gridbox is provided
+    # containing keys: lat1, lat2, lon1, lon2
+    assert (
+        "lat1" in plot_gridbox
+        and "lat2" in plot_gridbox
+        and "lon1" in plot_gridbox
+        and "lon2" in plot_gridbox
+    ), "The gridbox is not correctly defined."
+
+    # Find the indexes of the lats and lons
+    lat1_idx = np.argmin(np.abs(lats - plot_gridbox["lat1"]))
+    lat2_idx = np.argmin(np.abs(lats - plot_gridbox["lat2"]))
+    lon1_idx = np.argmin(np.abs(lons - plot_gridbox["lon1"]))
+    lon2_idx = np.argmin(np.abs(lons - plot_gridbox["lon2"]))
+
+    # Constraint the variable array to the gridbox
+    # and take the mean over lat and lon
+    variable = variable[:, lat1_idx:lat2_idx, lon1_idx:lon2_idx].mean(axis=(1, 2))
+
+    # If the string "NAO" is in the index name
+    if index_name in ["NAO", "delta p"]:
+        print("Converting NAO index from Pa to hPa")
+        # Convert the index to hPa
+        index = index / 100
+
+    # if the string "pr" is in the variable name
+    if "pr" in variable_name:
+        print("Converting obs precip from m day-1 to mm day-1")
+        # Convert the variable to mm/day
+        variable = variable * 1000
+
+    # Plot the scatter plot
+    ax.scatter(index, variable, color="k")
+
+    # Set up the x-axis label
+    ax.set_xlabel(index_name)
+
+    # Set up the y-axis label
+    ax.set_ylabel(variable_name)
+
+    # Set up the title
+    if title is not None:
+        ax.set_title(title)
+
+    # Calculate the regression line
+    slope, intercept, r_value, p_value, std_err = linregress(index, variable)
+
+    # print the value of the slope and intercept
+    print(f"Slope: {slope}, Intercept: {intercept}")
+
+    # Show the values
+    if intercept < 0:
+        equation = f"y = {slope:.2f}x - {abs(intercept):.3f}"
+    else:
+        equation = f"y = {slope:.2f}x + {intercept:.3f}"
+
+    # If show_eqn is True
+    if show_eqn is True:
+        # Plot the regression line
+        ax.plot(
+            index,
+            slope * index + intercept,
+            color="r",
+        )
+
+        ax.text(
+            0.05,
+            0.95,
+            f"{equation}\nr = {r_value:.2f}, p = {p_value:.2f}",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            bbox=dict(facecolor="white", alpha=0.5),
+            fontsize=12,
+        )
+
+        # Set up a dataframe to store the values
+        # of the linear regression
+        df = pd.DataFrame(
+            {
+                "slope": [slope],
+                "intercept": [intercept],
+                "r_value": [r_value],
+                "p_value": [p_value],
+                "std_err": [std_err],
+            }
+        )
+
+    else:
+        ax.text(
+            0.05,
+            0.95,
+            f"r = {r_value:.2f}, p = {p_value:.2f}",
+            transform=ax.transAxes,
+            ha="left",
+            va="top",
+            bbox=dict(facecolor="white", alpha=0.5),
+            fontsize=12,
+        )
+
+    # Show the plot
+    plt.show()
+
+    if show_eqn is True:
+        return df
+
+    return None
+
+
+# Model NAO obs gridpoint var correlations
+def calc_model_nao_gridbox_var_corr(
+    nao_df: pd.DataFrame,
+    gridbox: dict,
+    obs_var: str,
+    months: list = [10, 11, 12, 1, 2, 3],
+    annual_offset: int = 3,
+    obs_var_data_path: str = dicts.regrid_file,
+    obs_start_year: str = "1960",
+    obs_end_year: str = "2023",
+    coeff_dir: str = "/home/users/benhutch/energy-met-corr/corrs",
+    coeff_fname: str = "offshore_wind_NAO_correlations_EEZ.csv",
+) -> pd.DataFrame:
+    """
+    Forms a dataframe containing the model NAO (or model delta P)
+    and the calibrated model NAO, min and max, according to the coefficient
+    values obtained from the linear regression between the variable and
+    gridbox var values.
+
+    Args:
+    -----
+
+    nao_df: pd.DataFrame
+        The dataframe containing the model NAO values.
+
+    gridbox: dict
+        The dictionary containing the gridbox information.
+
+    obs_var: str
+        The observed variable to use for calculating the NAO index.
+
+    months: list
+        The months to use for the NAO index.
+
+    annual_offset: int
+        The annual offset to use for the NAO index.
+
+    obs_var_data_path: str
+        The path to the observed variable data.
+
+    obs_start_year: int
+        The start year for the observed data.
+
+    obs_end_year: int
+        The end year for the observed data.
+
+    coeff_dir: str
+        The directory containing the coefficients.
+
+    coeff_fname: str
+        The filename containing the coefficients.
+
+    Returns:
+    --------
+
+    df: pd.DataFrame
+        The dataframe containing the model NAO, min and max values.
+
+    """
+
+    # Assert that lat1, lat2, lon1, lon2 are in the gridbox keys
+    assert (
+        "lat1" in gridbox
+        and "lat2" in gridbox
+        and "lon1" in gridbox
+        and "lon2" in gridbox
+    ), "The gridbox is not correctly defined."
+
+    # Load the coefficients
+    # Assert that the file exusts
+    assert (
+        len(glob.glob(f"{coeff_dir}/{coeff_fname}")) == 1
+    ), f"The file {coeff_dir}/{coeff_fname} does not exist."
+
+    # Load the coefficients
+    coeffs = pd.read_csv(f"{coeff_dir}/{coeff_fname}")
+
+    # Extract the lat and lons from the gridbox
+    lat1, lat2 = gridbox["lat1"], gridbox["lat2"]
+    lon1, lon2 = gridbox["lon1"], gridbox["lon2"]
+
+    # Load in the ERA5 data to validate against
+    clim_var = xr.open_mfdataset(
+        obs_var_data_path,
+        combine="by_coords",
+        parallel=True,
+        chunks={"time": "auto", "latitude": "auto", "longitude": "auto"},
+    )[obs_var]
+
+    # If expver is a variable in the dataset
+    if "expver" in clim_var.coords:
+        # Combine the first two expver variables
+        clim_var = clim_var.sel(expver=1).combine_first(clim_var.sel(expver=5))
+
+    # Constrain obs to ONDJFM
+    clim_var = clim_var.sel(time=clim_var.time.dt.month.isin(months))
+
+    # Shift the time index back by 3 months
+    clim_var_shifted = clim_var.shift(time=-annual_offset)
+
+    # Take annual means
+    clim_var_annual = clim_var_shifted.resample(time="Y").mean()
+
+    # Throw away years 1959, 2021, 2022 and 2023
+    clim_var_annual = clim_var_annual.sel(time=slice(obs_start_year, obs_end_year))
+
+    # Remove the climatology
+    clim_var_anomaly = clim_var_annual - clim_var_annual.mean(dim="time")
+
+    # Calculate the mean of the clim var anomalies for this region
+    clim_var_mean = clim_var_anomaly.sel(
+        lat=slice(lat1, lat2), lon=slice(lon1, lon2)
+    ).mean(dim=["lat", "lon"])
+
+    # Extract the time values
+    time_values = clim_var_mean.time.values
+
+    # Extract the values
+    clim_var_values = clim_var_mean.values
+
+    # Create a dataframe for this data
+    clim_var_df = pd.DataFrame(
+        {"time": time_values, f"{obs_var} anomaly mean": clim_var_values}
+    )
+
+    # Take the central rolling average
+    clim_var_df = clim_var_df.set_index("time").rolling(window=8, center=True).mean()
+
+    # Drop the NaN values
+    clim_var_df = clim_var_df.dropna()
+
+    # return the dataframes
+    return nao_df, clim_var_df
