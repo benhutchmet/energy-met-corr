@@ -139,6 +139,15 @@ uk_n_box_corrected = {"lon1": -27, "lon2": 21, "lat1": 57, "lat2": 70}
 # Define this but corrected
 uk_s_box_corrected = {"lon1": -27, "lon2": 21, "lat1": 38, "lat2": 51}
 
+# Define the scandi gridbox to be used for precip
+# From Landgren et al., 2014
+scandi_box = {
+    "lon1": 2,  # degrees east
+    "lon2": 23,
+    "lat1": 56,  # degrees north
+    "lat2": 71,
+}
+
 iso_mapping = {
     "ES": "ESP",
     "NO": "NOR",
