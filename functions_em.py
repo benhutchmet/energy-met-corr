@@ -1333,6 +1333,7 @@ def correlate_nao_uread(
     use_model_data: bool = False,
     model_config: dict = None,
     df_dir: str = "/gws/nopw/j04/canari/users/benhutch/nao_stats_df/",
+    model_arr_dir: str = "/gws/nopw/j04/canari/users/benhutch/alternate-lag-processed-data/"
 ) -> pd.DataFrame:
     """
     Function which correlates the observed NAO (from ERA5) with demand,
@@ -1406,6 +1407,10 @@ def correlate_nao_uread(
 
     df_dir
         The directory in which the dataframes are stored for the model data
+
+    model_arr_dir
+        The directory in which the arrays containing the 
+        processed model data are stored
 
     Returns:
 
@@ -2161,6 +2166,32 @@ def correlate_nao_uread(
         elif shp_file is not None and "NUTS" in shp_file and use_model_data is True:
             print("Using model data averaged over NUTS regions")
 
+            # Assert that the model array directory exists
+            assert os.path.isdir(
+                model_arr_dir
+            ), f"{model_arr_dir} does not exist or is not a directory"
+
+            # Set up the filename root for the data
+            # assert that variable, season, region, start_year, end_year,
+            # forecast range, lag, and method are in model_config
+            assert all(
+                key in model_config
+                for key in [
+                    "variable",
+                    "season",
+                    "region",
+                    "start_year",
+                    "end_year",
+                    "forecast_range",
+                    "lag",
+                    "method",
+                ]
+            ), "One or more required keys are missing from model_config"
+
+            # Form the root of the filename
+
+            # Identify the most recent version of the file
+
             # Load in the data from the alt lag directory
             # depending on model args provided
 
@@ -2176,9 +2207,6 @@ def correlate_nao_uread(
             # append the country-mean values for each country to a dataframe
 
             # calculate the correlations
-
-
-            
 
         elif shp_file is not None and "eez" in shp_file and use_model_data is True:
             print("Using model data averaged over EEZ regions")
