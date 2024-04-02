@@ -2189,11 +2189,46 @@ def correlate_nao_uread(
             ), "One or more required keys are missing from model_config"
 
             # Form the root of the filename
+            fnames_root = f"{model_config["variable"]}_{model_config["season"]}_{model_config["region"]_{model_config["start_year"]}_{model_config["end_year"]}_{model_config["forecast_range"]}_{model_config["lag"]_*_model_config["method"].npy"
 
-            # Identify the most recent version of the file
+            # Form the path to the files
+            matching_files = glob.glob(f"{model_arr_dir}{fnames_root}")
 
-            # Load in the data from the alt lag directory
-            # depending on model args provided
+            # If the len of matching files is greater than 1
+            if len(matching_files) > 1:
+                print("More than one matching file found.")
+
+                # Extract the datetimes
+                datetimes = [file.split("_")[7] for file in matching_files]
+
+                # Remove the .npy from the datetimes
+                datetimes = [datetime.split(".")[0] for datetime in datetimes]
+
+                # Convert the datasetimes to datetimes using pandas
+                datetimes = [
+                    pd.to_datetime(datetime, unit="s") for datetime in datetimes
+                ]
+
+                # Find the latest datetime
+                latest_datetime = max(datetimes)
+
+                # Find the index of the latest datetime
+                latest_datetime_index = datetimes.index(latest_datetime)
+
+                # Print that we are using the latest datetime file
+                print(
+                    "Using the latest datetime file:",
+                    matching_files[latest_datetime_index],
+                )
+
+                # Load the file
+                data = np.load(matching_files[latest_datetime_index])
+            else:
+                # Load the file
+                data = np.load(matching_files[0])
+
+            # Print the dimensions of the data
+            print(f"shape of the data: {data.shape}")
 
             # If there are multiple ensemble members
             # then take the ensemble mean
