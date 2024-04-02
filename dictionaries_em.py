@@ -174,7 +174,25 @@ iso_mapping = {
     "AL": "ALB",
     "BG": "BGR",
     "SI": "SVN",
-    # Add the rest of your mapping here
+    "AT": "AUT",
+    "BY": "BLR",
+    "BA": "BIH",
+    "CZ": "CZE",
+    "HU": "HUN",
+    "XK": "XKX",
+    "LT": "LTU",
+    "LU": "LUX",
+    "MK": "MKD",
+    "MD": "MDA",
+    "ME": "MNE",
+    "PL": "POL",
+    "RS": "SRB",
+    "SK": "SVK",
+    "CH": "CHE",
+    "UA": "UKR",
+    # Placeholder ISO codes
+    "MD": "MDA",  # Replace 'XXX' with the correct ISO code for Moldova
+    "ME": "MNE",  # Replace 'XXX' with the correct ISO code for Montenegro
 }
 
 # EEZ countries to aggregate

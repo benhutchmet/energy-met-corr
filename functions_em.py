@@ -1763,6 +1763,9 @@ def correlate_nao_uread(
             # Create a mask to apply to the gridded dataset
             clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
 
+            # # Print the values of the subset
+            # print(f"clim var anomaly subset values: {clim_var_anomaly_subset.values()}")
+
             # Create the eez mask
             eez_mask = eez_mask_poly.mask(
                 clim_var_anomaly_subset["lon"],
@@ -1985,6 +1988,10 @@ def correlate_nao_uread(
             # Create a subset of the clim data
             clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
 
+            # Print the values of clim_var_anomaly_subset
+            # Print the values of the subset
+            print(f"clim var anomaly subset values: {clim_var_anomaly_subset.values}")
+
             # Create the mask
             nuts_mask = nuts_mask_poly.mask(
                 clim_var_anomaly_subset["lon"],
@@ -2028,6 +2035,12 @@ def correlate_nao_uread(
                     print("Continuing to the next region.")
                     continue
 
+                # Print the id_lat and id_lon
+                print("id_lat[0], id_lat[-1]: ", id_lat[0], id_lat[-1])
+
+                # Print the id_lat and id_lon
+                print("id_lon[0], id_lon[-1]: ", id_lon[0], id_lon[-1])
+
                 # Select the region from the anoms
                 out_sel = (
                     clim_var_anomaly.sel(
@@ -2038,8 +2051,15 @@ def correlate_nao_uread(
                     .where(nuts_mask == i)
                 )
 
+                # # print the values of out_sel
+                # print(f"out sel values {out_sel.values}")
+
                 # Group this into a mean
                 out_sel = out_sel.mean(dim=["lat", "lon"])
+
+                # # Print the values of out sel
+                # # print the values of out_sel
+                # print(f"out sel values after mean {out_sel.values}")
 
                 # Add this to the dataframe
                 df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel.values
@@ -2056,6 +2076,15 @@ def correlate_nao_uread(
             df_ts.columns = [
                 f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
             ]
+
+            # pRINT THE column names
+            print("Column names df_ts: ", df_ts.columns)
+
+            # print the shape of df_ts
+            print("Shape of df_ts: ", df_ts.shape)
+
+            # Print df_ts head
+            print("df_ts head: ", df_ts.head())
 
             # Drop the first rolling window/2 values
             df_ts = df_ts.iloc[int(rolling_window / 2) :]
