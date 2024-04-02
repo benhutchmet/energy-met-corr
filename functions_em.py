@@ -2077,20 +2077,23 @@ def correlate_nao_uread(
                 f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
             ]
 
-            # pRINT THE column names
-            print("Column names df_ts: ", df_ts.columns)
+            # # pRINT THE column names
+            # print("Column names df_ts: ", df_ts.columns)
 
-            # print the shape of df_ts
-            print("Shape of df_ts: ", df_ts.shape)
+            # # print the shape of df_ts
+            # print("Shape of df_ts: ", df_ts.shape)
 
-            # Print df_ts head
-            print("df_ts head: ", df_ts.head())
+            # # Print df_ts head
+            # print("df_ts head: ", df_ts.head())
 
             # Drop the first rolling window/2 values
             df_ts = df_ts.iloc[int(rolling_window / 2) :]
 
             # join the dataframes
             merged_df = df.join(df_ts, how="inner")
+
+            # # Prin the head of the merged_df
+            # print(f"merged df head: {merged_df.head()}")
 
             # Create a new dataframe for the correlations
             corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
@@ -2109,14 +2112,11 @@ def correlate_nao_uread(
                 # Extract the column
                 col = merged_df.columns[i]
 
-                # Convert col to iso bname
-                col_iso = dicts.iso_mapping[col]
-
                 # If merged_df[f"{col_iso}_{obs_var}"] doesn't exist
                 # Then create this
                 # and fill with NaN values
-                if f"{col_iso}_{obs_var}" not in merged_df.columns:
-                    merged_df[f"{col_iso}_{obs_var}"] = np.nan
+                if f"{col}_{obs_var}" not in merged_df.columns:
+                    merged_df[f"{col}_{obs_var}"] = np.nan
 
                 # Check whether the length of the column is 4
                 assert (
@@ -2125,12 +2125,12 @@ def correlate_nao_uread(
 
                 # Same check for the other one
                 assert (
-                    len(merged_df[f"{col_iso}_{obs_var}"]) >= 2
+                    len(merged_df[f"{col}_{obs_var}"]) >= 2
                 ), f"The length of the column is less than 2 for {col_iso}_{obs_var}"
 
                 # If merged_df[f"{col_iso}_{obs_var}"] contains NaN values
                 # THEN fill the corr and pval with NaN
-                if merged_df[f"{col_iso}_{obs_var}"].isnull().values.any():
+                if merged_df[f"{col}_{obs_var}"].isnull().values.any():
                     corr = np.nan
                     pval = np.nan
 
@@ -2146,7 +2146,7 @@ def correlate_nao_uread(
                     continue
 
                 # Calculate corr between wind power (GW) and wind speed
-                corr, pval = pearsonr(merged_df[col], merged_df[f"{col_iso}_{obs_var}"])
+                corr, pval = pearsonr(merged_df[col], merged_df[f"{col}_{obs_var}"])
 
                 # Append to the dataframe
                 corr_df_to_append = pd.DataFrame(
