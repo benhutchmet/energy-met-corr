@@ -1940,9 +1940,195 @@ def correlate_nao_uread(
         elif shp_file is not None and "NUTS" in shp_file:
             print("Averaging data for NUTS regions")
 
-            NotImplementedError(
-                "This function is not yet implemented for NUTS regions."
+            # Assert that the shape file is not one
+            assert shp_file is not None, "The shapefile is None."
+
+            # Assert that the shape file directory is not none
+            assert shp_file_dir is not None, "The shapefile directory is None."
+
+            # Assert that the shape file directory exists
+            assert os.path.exists(
+                shp_file_dir
+            ), "The shapefile directory does not exist."
+
+            # Assert that the shapefile exists
+            assert os.path.exists(
+                os.path.join(shp_file_dir, shp_file)
+            ), "The shapefile does not exist."
+
+            # Load the shapefile
+            shapefile = gpd.read_file(os.path.join(shp_file_dir, shp_file))
+
+            # restrict to level code 0
+            shapefile = shapefile[shapefile["LEVL_CODE"] == 0]
+
+            # TODO: Fix hardcoded here
+            country_codes = list(dicts.countries_nuts_id.values())
+
+            # Limit the dataframe to those country_codes
+            shapefile = shapefile[shapefile.NUTS_ID.isin(country_codes)]
+
+            # Keep only the NUTS_ID, NUTS_NAME, and geometry columns
+            shapefile = shapefile[["NUTS_ID", "NUTS_NAME", "geometry"]]
+
+            # Set up the numbers for the mask
+            shapefile["numbers"] = range(len(shapefile))
+
+            # Test the masking function
+            nuts_mask_poly = regionmask.from_geopandas(
+                shapefile,
+                names="NUTS_NAME",
+                abbrevs="NUTS_ID",
+                numbers="numbers",
             )
+
+            # Create a subset of the clim data
+            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
+
+            # Create the mask
+            nuts_mask = nuts_mask_poly.mask(
+                clim_var_anomaly_subset["lon"],
+                clim_var_anomaly_subset["lat"],
+            )
+
+            # Create a dataframe
+            df_ts = pd.DataFrame({"time": clim_var_anomaly.time.values})
+
+            # Extract the lat and lons for the mask
+            lat = nuts_mask.lat.values
+            lon = nuts_mask.lon.values
+
+            # Set up the n_flags
+            n_flags = len(nuts_mask.attrs["flag_values"])
+
+            # Loop over the regions
+            for i in tqdm((range(n_flags))):
+                # Add a new column to the dataframe
+                df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = np.nan
+
+                # Print the region
+                print(
+                    f"Calculating correlation for region: {nuts_mask.attrs['flag_meanings'].split(' ')[i]}"
+                )
+
+                # Extract the mask for the region
+                sel_mask = nuts_mask.where(nuts_mask == i).values
+
+                # Set up the lon indices
+                id_lon = lon[np.where(~np.all(np.isnan(sel_mask), axis=0))]
+
+                # Set up the lat indices
+                id_lat = lat[np.where(~np.all(np.isnan(sel_mask), axis=1))]
+
+                # If the length of id_lon is 0 and the length of id_lat is 0
+                if len(id_lon) == 0 and len(id_lat) == 0:
+                    print(
+                        f"Region {nuts_mask.attrs['flag_meanings'].split(' ')[i]} is empty."
+                    )
+                    print("Continuing to the next region.")
+                    continue
+
+                # Select the region from the anoms
+                out_sel = (
+                    clim_var_anomaly.sel(
+                        lat=slice(id_lat[0], id_lat[-1]),
+                        lon=slice(id_lon[0], id_lon[-1]),
+                    )
+                    .compute()
+                    .where(nuts_mask == i)
+                )
+
+                # Group this into a mean
+                out_sel = out_sel.mean(dim=["lat", "lon"])
+
+                # Add this to the dataframe
+                df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel.values
+
+            # Take the central rolling average
+            df_ts = (
+                df_ts.set_index("time")
+                .rolling(window=rolling_window, center=centre)
+                .mean()
+            )
+
+            # modify each of the column names to include '_si10'
+            # at the end of the string
+            df_ts.columns = [
+                f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
+            ]
+
+            # Drop the first rolling window/2 values
+            df_ts = df_ts.iloc[int(rolling_window / 2) :]
+
+            # join the dataframes
+            merged_df = df.join(df_ts, how="inner")
+
+            # Create a new dataframe for the correlations
+            corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+            # Find the length of the merged_df.columns which don't contain "Si10"
+            n_cols = len(
+                [
+                    col
+                    for col in merged_df.columns
+                    if obs_var not in col and "time" not in col
+                ]
+            )
+
+            # Loop over the columns
+            for i in tqdm(range(n_cols)):
+                # Extract the column
+                col = merged_df.columns[i]
+
+                # Convert col to iso bname
+                col_iso = dicts.iso_mapping[col]
+
+                # If merged_df[f"{col_iso}_{obs_var}"] doesn't exist
+                # Then create this
+                # and fill with NaN values
+                if f"{col_iso}_{obs_var}" not in merged_df.columns:
+                    merged_df[f"{col_iso}_{obs_var}"] = np.nan
+
+                # Check whether the length of the column is 4
+                assert (
+                    len(merged_df[col]) >= 2
+                ), f"The length of the column is less than 2 for {col}"
+
+                # Same check for the other one
+                assert (
+                    len(merged_df[f"{col_iso}_{obs_var}"]) >= 2
+                ), f"The length of the column is less than 2 for {col_iso}_{obs_var}"
+
+                # If merged_df[f"{col_iso}_{obs_var}"] contains NaN values
+                # THEN fill the corr and pval with NaN
+                if merged_df[f"{col_iso}_{obs_var}"].isnull().values.any():
+                    corr = np.nan
+                    pval = np.nan
+
+                    # Append to the dataframe
+                    corr_df_to_append = pd.DataFrame(
+                        {"region": [col], "correlation": [corr], "p-value": [pval]}
+                    )
+
+                    # Append to the dataframe
+                    corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+                    # continue to the next iteration
+                    continue
+
+                # Calculate corr between wind power (GW) and wind speed
+                corr, pval = pearsonr(merged_df[col], merged_df[f"{col_iso}_{obs_var}"])
+
+                # Append to the dataframe
+                corr_df_to_append = pd.DataFrame(
+                    {"region": [col], "correlation": [corr], "p-value": [pval]}
+                )
+
+                # Append to the dataframe
+                corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+            # Return the dataframe
+            return merged_df, corr_df, shapefile
         elif use_model_data is False:
             print("Averaging over specified gridbox")
 
