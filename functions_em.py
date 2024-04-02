@@ -2189,10 +2189,16 @@ def correlate_nao_uread(
             ), "One or more required keys are missing from model_config"
 
             # Form the root of the filename
-            fnames_root = f"{model_config["variable"]}_{model_config["season"]}_{model_config["region"]_{model_config["start_year"]}_{model_config["end_year"]}_{model_config["forecast_range"]}_{model_config["lag"]_*_model_config["method"].npy"
+            fnames_root = f"{model_config['variable']}_{model_config['season']}_{model_config['region']}_{model_config['start_year']}_{model_config['end_year']}_{model_config['forecast_range']}_{model_config['lag']}_*_{model_config['method']}.npy"
 
             # Form the path to the files
             matching_files = glob.glob(f"{model_arr_dir}{fnames_root}")
+
+            # Print the matching files
+            print(f"matching files {model_arr_dir}{fnames_root}")
+
+            # prit the globbed files
+            print(f"globbed files {matching_files}")
 
             # If the len of matching files is greater than 1
             if len(matching_files) > 1:
@@ -2228,6 +2234,7 @@ def correlate_nao_uread(
                 data = np.load(matching_files[0])
 
             # Print the dimensions of the data
+            # shape of the data: (51, 664, 72, 144)
             print(f"shape of the data: {data.shape}")
 
             # If there are multiple ensemble members
