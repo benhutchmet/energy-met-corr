@@ -148,6 +148,23 @@ scandi_box = {
     "lat2": 71,
 }
 
+# Define the mediterranean box for ssrd
+# from (Calì Quaglia et al., 2022)
+med_box = {
+    "lon1": -11,  # degrees east
+    "lon2": 37,
+    "lat1": 31,  # degrees north
+    "lat2": 52,
+}
+
+# Focus this box on spain, france and italy
+med_box_focus = {
+    "lon1": -11,  # degrees east
+    "lon2": 19,
+    "lat1": 35,  # degrees north
+    "lat2": 51,
+}
+
 iso_mapping = {
     "ES": "ESP",
     "NO": "NOR",
