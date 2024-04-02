@@ -1704,7 +1704,7 @@ def correlate_nao_uread(
         print("calculating correlation skill for gridpoint variable")
 
         # If the filename contains the string "eez"
-        if shp_file is not None and "eez" in shp_file:
+        if shp_file is not None and "eez" in shp_file and use_model_data is False:
             print("Averaging data for EEZ domains")
 
             # Assert that shp_file is not None
@@ -1940,7 +1940,7 @@ def correlate_nao_uread(
 
             # Return the dataframe
             return merged_df, corr_df, shapefile
-        elif shp_file is not None and "NUTS" in shp_file:
+        elif shp_file is not None and "NUTS" in shp_file and use_model_data is False:
             print("Averaging data for NUTS regions")
 
             # Assert that the shape file is not one
@@ -2158,6 +2158,33 @@ def correlate_nao_uread(
 
             # Return the dataframe
             return merged_df, corr_df, shapefile
+        elif shp_file is not None and "NUTS" in shp_file and use_model_data is True:
+            print("Using model data averaged over NUTS regions")
+
+            # Load in the data from the alt lag directory
+            # depending on model args provided
+
+            # If there are multiple ensemble members
+            # then take the ensemble mean
+
+            # Set up the lats and lons as we would expect them to be
+
+            # Using regionmask, set up a numpy mask for these regions
+
+            # apply this mask to the array
+
+            # append the country-mean values for each country to a dataframe
+
+            # calculate the correlations
+
+
+            
+
+        elif shp_file is not None and "eez" in shp_file and use_model_data is True:
+            print("Using model data averaged over EEZ regions")
+
+            # Not yet implemented error
+            raise NotImplementedError("This function is not yet implemented.")
         elif use_model_data is False:
             print("Averaging over specified gridbox")
 
