@@ -2436,15 +2436,88 @@ def correlate_nao_uread(
                 # Add this to the dataframe
                 df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel
 
-            print("Exiting the script")
-            sys.exit()
+            # Take the central rolling average
+            df_ts = (
+                df_ts.set_index("time")
+                .rolling(window=rolling_window, center=centre)
+                .mean()
+            )
 
-            # apply this mask to the array
+            # modify each of the column names to include '_si10'
+            # at the end of the string
+            df_ts.columns = [
+                f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
+            ]
 
-            # append the country-mean values for each country to a dataframe
+            # Drop the first rolling window/2 values
+            df_ts = df_ts.iloc[int(rolling_window / 2) :]
 
-            # calculate the correlations
+            # join the dataframes
+            merged_df = df.join(df_ts, how="inner")
 
+            # Create a new dataframe for the correlations
+            corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
+
+            # Find the length of the merged_df.columns which don't contain "Si10"
+            n_cols = len(
+                [
+                    col
+                    for col in merged_df.columns
+                    if obs_var not in col and "time" not in col
+                ]
+            )
+
+            # Loop over the columns
+            for i in tqdm(range(n_cols)):
+                # Extract the column
+                col = merged_df.columns[i]
+
+                # If merged_df[f"{col_iso}_{obs_var}"] doesn't exist
+                # Then create this
+                # and fill with NaN values
+                if f"{col}_{obs_var}" not in merged_df.columns:
+                    merged_df[f"{col}_{obs_var}"] = np.nan
+
+                # Check whether the length of the column is 4
+                assert (
+                    len(merged_df[col]) >= 2
+                ), f"The length of the column is less than 2 for {col}"
+
+                # Same check for the other one
+                assert (
+                    len(merged_df[f"{col}_{obs_var}"]) >= 2
+                ), f"The length of the column is less than 2 for {col_iso}_{obs_var}"
+
+                # If merged_df[f"{col_iso}_{obs_var}"] contains NaN values
+                # THEN fill the corr and pval with NaN
+                if merged_df[f"{col}_{obs_var}"].isnull().values.any():
+                    corr = np.nan
+                    pval = np.nan
+
+                    # Append to the dataframe
+                    corr_df_to_append = pd.DataFrame(
+                        {"region": [col], "correlation": [corr], "p-value": [pval]}
+                    )
+
+                    # Append to the dataframe
+                    corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+                    # continue to the next iteration
+                    continue
+
+                # Calculate corr between wind power (GW) and wind speed
+                corr, pval = pearsonr(merged_df[col], merged_df[f"{col}_{obs_var}"])
+
+                # Append to the dataframe
+                corr_df_to_append = pd.DataFrame(
+                    {"region": [col], "correlation": [corr], "p-value": [pval]}
+                )
+
+                # Append to the dataframe
+                corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
+
+            # Return the dataframes
+            return merged_df, corr_df, shapefile
         elif shp_file is not None and "eez" in shp_file and use_model_data is True:
             print("Using model data averaged over EEZ regions")
 
