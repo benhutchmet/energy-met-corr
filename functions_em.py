@@ -2097,8 +2097,8 @@ def correlate_nao_uread(
             # join the dataframes
             merged_df = df.join(df_ts, how="inner")
 
-            # # Prin the head of the merged_df
-            # print(f"merged df head: {merged_df.head()}")
+            # Prin the head of the merged_df
+            print(f"merged df head: {merged_df.head()}")
 
             # Create a new dataframe for the correlations
             corr_df = pd.DataFrame(columns=["region", "correlation", "p-value"])
@@ -2436,12 +2436,18 @@ def correlate_nao_uread(
                 # Add this to the dataframe
                 df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel
 
-            # Take the central rolling average
-            df_ts = (
-                df_ts.set_index("time")
-                .rolling(window=rolling_window, center=centre)
-                .mean()
-            )
+            # # Take the central rolling average
+            # df_ts = (
+            #     df_ts.set_index("time")
+            #     .rolling(window=rolling_window, center=centre)
+            #     .mean()
+            # )
+
+            # print the head of df_ts
+            print("Head of df_ts: ", df_ts.head())
+
+            # Set the index of df_ts to time
+            df_ts = df_ts.set_index("time")
 
             # modify each of the column names to include '_si10'
             # at the end of the string
@@ -2449,8 +2455,17 @@ def correlate_nao_uread(
                 f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
             ]
 
-            # Drop the first rolling window/2 values
-            df_ts = df_ts.iloc[int(rolling_window / 2) :]
+            # # Drop the first rolling window/2 values
+            # df_ts = df_ts.iloc[int(rolling_window / 2) :]
+
+            # set the df index to year
+            df.index = df.index.year
+
+            # print the head of the df
+            print("Head of df: ", df.head())
+
+            # # print the head of merged df
+            # print("Merged df head: ", merged_df.head())
 
             # join the dataframes
             merged_df = df.join(df_ts, how="inner")
@@ -2466,6 +2481,7 @@ def correlate_nao_uread(
                     if obs_var not in col and "time" not in col
                 ]
             )
+
 
             # Loop over the columns
             for i in tqdm(range(n_cols)):
