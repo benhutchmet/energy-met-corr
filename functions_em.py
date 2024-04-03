@@ -1333,7 +1333,7 @@ def correlate_nao_uread(
     use_model_data: bool = False,
     model_config: dict = None,
     df_dir: str = "/gws/nopw/j04/canari/users/benhutch/nao_stats_df/",
-    model_arr_dir: str = "/gws/nopw/j04/canari/users/benhutch/alternate-lag-processed-data/"
+    model_arr_dir: str = "/gws/nopw/j04/canari/users/benhutch/alternate-lag-processed-data/",
 ) -> pd.DataFrame:
     """
     Function which correlates the observed NAO (from ERA5) with demand,
@@ -1409,7 +1409,7 @@ def correlate_nao_uread(
         The directory in which the dataframes are stored for the model data
 
     model_arr_dir
-        The directory in which the arrays containing the 
+        The directory in which the arrays containing the
         processed model data are stored
 
     Returns:
@@ -2299,8 +2299,20 @@ def correlate_nao_uread(
             # Set up the n_flags
             n_flags = len(nuts_mask.attrs["flag_values"])
 
+            # Set up the valid years
+            if model_config["forecast_range"] == "2-9":
+                valid_years = np.arange(
+                    model_config["start_year"] + 5, model_config["end_year"] + 5 + 1
+                )
+            elif model_config["forecast_range"] == "2-5":
+                raise NotImplementedError(
+                    "The forecast range 2-5 is not yet implemented."
+                )
+            else:
+                raise ValueError("The forecast range is not recognised.")
+
             # Create a dataframe
-            df_ts = pd.DataFrame({"time": clim_var_anomaly.time.values})
+            df_ts = pd.DataFrame({"time": valid_years})
 
             # Extracts the lats and lons
             lats = nuts_mask.lat.values
@@ -2343,18 +2355,18 @@ def correlate_nao_uread(
                     print("Continuing to the next region.")
                     continue
 
-                # Print the id_lat and id_lon
-                print("id_lat[0], id_lat[-1]: ", id_lat[0], id_lat[-1])
+                # # Print the id_lat and id_lon
+                # print("id_lat[0], id_lat[-1]: ", id_lat[0], id_lat[-1])
 
-                # Print the id_lat and id_lon
-                print("id_lon[0], id_lon[-1]: ", id_lon[0], id_lon[-1])
+                # # Print the id_lat and id_lon
+                # print("id_lon[0], id_lon[-1]: ", id_lon[0], id_lon[-1])
 
-                # print the id_lat and id_lon
-                print("id_lat: ", id_lat)
-                print("id_lon: ", id_lon)
+                # # print the id_lat and id_lon
+                # print("id_lat: ", id_lat)
+                # print("id_lon: ", id_lon)
 
-                print("id_lat type: ", type(id_lat))
-                print("id_lon type: ", type(id_lon))
+                # print("id_lat type: ", type(id_lat))
+                # print("id_lon type: ", type(id_lon))
 
                 # Find the index for the id_lat[0] and id_lat[-1]
                 id_lat0_idx = np.where(lats == id_lat[0])[0][0]
@@ -2365,38 +2377,61 @@ def correlate_nao_uread(
                 id_lon1_idx = np.where(lons == id_lon[-1])[0][0]
 
                 # Select the region from the data
-                data_region = data[:, id_lat0_idx:id_lat1_idx + 1, id_lon0_idx:id_lon1_idx + 1]
+                data_region = data[
+                    :, id_lat0_idx : id_lat1_idx + 1, id_lon0_idx : id_lon1_idx + 1
+                ]
 
                 # Create a mask for the region
-                region_mask = sel_mask[id_lat0_idx:id_lat1_idx + 1, id_lon0_idx:id_lon1_idx + 1]
+                region_mask = sel_mask[
+                    id_lat0_idx : id_lat1_idx + 1, id_lon0_idx : id_lon1_idx + 1
+                ]
 
-                # print the shape of the data region
-                print(f"data region shape {data_region.shape}")
+                # Create a boolean region mask
+                region_mask_bool = region_mask == i
 
-                # print the shape of the region_mask
-                print(f"region mask shape {region_mask.shape}")
+                # # Print the shape of the region mask bool
+                # print(f"region mask bool shape {region_mask_bool.shape}")
 
-                # Print the region mask
-                print(f"region mask: {region_mask}")
+                # # print the type of the region mask bool
+                # print(f"region mask bool type {type(region_mask_bool)}")
+
+                # # print the region mask bool
+                # print(f"region mask bool: {region_mask_bool}")
+
+                # # print the shape of the data region
+                # print(f"data region shape {data_region.shape}")
+
+                # # print the shape of the region_mask
+                # print(f"region mask shape {region_mask.shape}")
+
+                # # Print the region mask
+                # print(f"region mask: {region_mask}")
 
                 # Initialise out_sel with the same shape as data region
-                out_sel = np.zeros([data_region.shape[0], data_region.shape[1], data_region.shape[2]])
-
-                # print the shape of out_sel
-                print(f"out sel shape: {out_sel.shape}")
+                out_sel = np.zeros([data_region.shape[0]])
 
                 # Loop over the first axis
                 for j in range(data_region.shape[0]):
-                    print(f"shape out sel {out_sel[j].shape}")
                     # Apply the mask
-                    out_sel[j] = data_region[j][region_mask == i]
+                    masked_data = data_region[j][region_mask_bool]
+
+                    # if the masked data has two dimensions
+                    if len(masked_data.shape) == 2:
+                        # take the mean over the 0th and 1st axis
+                        masked_data = np.mean(masked_data, axis=(0, 1))
+                    elif len(masked_data.shape) == 1:
+                        # Take the mean over the 0th axis
+                        masked_data = np.mean(masked_data, axis=0)
+                    else:
+                        # Raise an error
+                        raise ValueError("The masked data has more than 2 dimensions.")
+
+                    # Assign the masked data to out_sel
+                    out_sel[j] = masked_data
 
                 # print the shape of out_sel
-                print(f"out sel shape {out_sel.shape}")
-                print(f"out set values {out_sel}")
-
-                # Group this into a mean
-                out_sel = out_sel.mean(axis=(1, 2))
+                # print(f"out sel shape {out_sel.shape}")
+                # print(f"out set values {out_sel}")
 
                 # Add this to the dataframe
                 df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel
