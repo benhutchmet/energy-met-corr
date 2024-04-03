@@ -2237,12 +2237,172 @@ def correlate_nao_uread(
             # shape of the data: (51, 664, 72, 144)
             print(f"shape of the data: {data.shape}")
 
+            # Replace the 1th axis with the 0th axis and vice versa
+            data = np.swapaxes(data, 0, 1)
+
             # If there are multiple ensemble members
             # then take the ensemble mean
+            if data.shape[0] > 1:
+                data = np.mean(data, axis=0)
+            else:
+                data = data[0]
+
+            # assert that the shapefile is not none
+            assert shp_file is not None, "The shapefile is None."
+
+            # assert that the shapefile directory is not none
+            assert shp_file_dir is not None, "The shapefile directory is None."
+
+            # assert that the shapefile directory exists
+            assert os.path.exists(
+                shp_file_dir
+            ), "The shapefile directory does not exist."
+
+            # assert that the shapefile exists
+            assert os.path.exists(
+                os.path.join(shp_file_dir, shp_file)
+            ), "The shapefile does not exist."
+
+            # Load the shapefile
+            shapefile = gpd.read_file(os.path.join(shp_file_dir, shp_file))
+
+            # restrict to level code 0
+            shapefile = shapefile[shapefile["LEVL_CODE"] == 0]
+
+            # Set up the country codes
+            country_codes = list(dicts.countries_nuts_id.values())
+
+            # Limit the dataframe to those country_codes
+            shapefile = shapefile[shapefile.NUTS_ID.isin(country_codes)]
+
+            # Keep only the NUTS_ID, NUTS_NAME, and geometry columns
+            shapefile = shapefile[["NUTS_ID", "NUTS_NAME", "geometry"]]
+
+            # Set up the numbers for the mask
+            shapefile["numbers"] = range(len(shapefile))
+
+            # Test the masking function
+            nuts_mask_poly = regionmask.from_geopandas(
+                shapefile,
+                names="NUTS_NAME",
+                abbrevs="NUTS_ID",
+                numbers="numbers",
+            )
 
             # Set up the lats and lons as we would expect them to be
+            lons = np.arange(-180, 180, 2.5)
+            lats = np.arange(-90, 90, 2.5)
 
             # Using regionmask, set up a numpy mask for these regions
+            nuts_mask = nuts_mask_poly.mask(lons, lats)
+
+            # Set up the n_flags
+            n_flags = len(nuts_mask.attrs["flag_values"])
+
+            # Create a dataframe
+            df_ts = pd.DataFrame({"time": clim_var_anomaly.time.values})
+
+            # Extracts the lats and lons
+            lats = nuts_mask.lat.values
+            lons = nuts_mask.lon.values
+
+            # Extract the nuts_mask values
+            nuts_mask_values = nuts_mask.values
+
+            # print the lats and lons
+            print("lats: ", lats)
+            print("lons: ", lons)
+
+            # Print the nuts mask values
+            print(f"nuts mask values {nuts_mask_values}")
+
+            # Loop over the regions
+            for i in tqdm((range(n_flags))):
+                # add a new column to the dataframe
+                df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = np.nan
+
+                # Print the region we are calculating correlations for
+                print(
+                    f"Calculating correlation for region: {nuts_mask.attrs['flag_meanings'].split(' ')[i]}"
+                )
+
+                # Extract the mask for the region
+                sel_mask = nuts_mask.where(nuts_mask == i).values
+
+                # Set up the lon indices
+                id_lon = lons[np.where(~np.all(np.isnan(sel_mask), axis=0))]
+
+                # Set up the lat indices
+                id_lat = lats[np.where(~np.all(np.isnan(sel_mask), axis=1))]
+
+                # If the length of id_lon is 0 and the length of id_lat is 0
+                if len(id_lon) == 0 and len(id_lat) == 0:
+                    print(
+                        f"Region {nuts_mask.attrs['flag_meanings'].split(' ')[i]} is empty."
+                    )
+                    print("Continuing to the next region.")
+                    continue
+
+                # Print the id_lat and id_lon
+                print("id_lat[0], id_lat[-1]: ", id_lat[0], id_lat[-1])
+
+                # Print the id_lat and id_lon
+                print("id_lon[0], id_lon[-1]: ", id_lon[0], id_lon[-1])
+
+                # print the id_lat and id_lon
+                print("id_lat: ", id_lat)
+                print("id_lon: ", id_lon)
+
+                print("id_lat type: ", type(id_lat))
+                print("id_lon type: ", type(id_lon))
+
+                # Find the index for the id_lat[0] and id_lat[-1]
+                id_lat0_idx = np.where(lats == id_lat[0])[0][0]
+                id_lat1_idx = np.where(lats == id_lat[-1])[0][0]
+
+                # Find the index for the id_lon[0] and id_lon[-1]
+                id_lon0_idx = np.where(lons == id_lon[0])[0][0]
+                id_lon1_idx = np.where(lons == id_lon[-1])[0][0]
+
+                # Select the region from the data
+                data_region = data[:, id_lat0_idx:id_lat1_idx + 1, id_lon0_idx:id_lon1_idx + 1]
+
+                # Create a mask for the region
+                region_mask = sel_mask[id_lat0_idx:id_lat1_idx + 1, id_lon0_idx:id_lon1_idx + 1]
+
+                # print the shape of the data region
+                print(f"data region shape {data_region.shape}")
+
+                # print the shape of the region_mask
+                print(f"region mask shape {region_mask.shape}")
+
+                # Print the region mask
+                print(f"region mask: {region_mask}")
+
+                # Initialise out_sel with the same shape as data region
+                out_sel = np.zeros([data_region.shape[0], data_region.shape[1], data_region.shape[2]])
+
+                # print the shape of out_sel
+                print(f"out sel shape: {out_sel.shape}")
+
+                # Loop over the first axis
+                for j in range(data_region.shape[0]):
+                    print(f"shape out sel {out_sel[j].shape}")
+                    # Apply the mask
+                    out_sel[j] = data_region[j][region_mask == i]
+
+                # print the shape of out_sel
+                print(f"out sel shape {out_sel.shape}")
+                print(f"out set values {out_sel}")
+
+                # Group this into a mean
+                out_sel = out_sel.mean(axis=(1, 2))
+
+                # Add this to the dataframe
+                df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel
+
+            print("Exiting the script")
+            sys.exit()
 
             # apply this mask to the array
 
