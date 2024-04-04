@@ -2289,6 +2289,19 @@ def correlate_nao_uread(
                 numbers="numbers",
             )
 
+            # Also process the climate data - these are the obs
+            # Create a subset of the clim data
+            clim_var_anomaly_subset = clim_var_anomaly.isel(time=0)
+
+            # Create the mask for the obs
+            nuts_mask_obs = nuts_mask_poly.mask(
+                clim_var_anomaly_subset["lon"],
+                clim_var_anomaly_subset["lat"],
+            )
+
+            # Create a dataframe
+            df_ts_obs = pd.DataFrame({"time": clim_var_anomaly.time.values})
+
             # Set up the lats and lons as we would expect them to be
             lons = np.arange(-180, 180, 2.5)
             lats = np.arange(-90, 90, 2.5)
@@ -2298,6 +2311,9 @@ def correlate_nao_uread(
 
             # Set up the n_flags
             n_flags = len(nuts_mask.attrs["flag_values"])
+
+            # And for the obs
+            n_flags_obs = len(nuts_mask_obs.attrs["flag_values"])
 
             # Set up the valid years
             if model_config["forecast_range"] == "2-9":
@@ -2318,15 +2334,19 @@ def correlate_nao_uread(
             lats = nuts_mask.lat.values
             lons = nuts_mask.lon.values
 
+            # And for the nuts mask obs
+            lats_obs = nuts_mask_obs.lat.values
+            lons_obs = nuts_mask_obs.lon.values
+
             # Extract the nuts_mask values
             nuts_mask_values = nuts_mask.values
 
-            # print the lats and lons
-            print("lats: ", lats)
-            print("lons: ", lons)
+            # # print the lats and lons
+            # print("lats: ", lats)
+            # print("lons: ", lons)
 
-            # Print the nuts mask values
-            print(f"nuts mask values {nuts_mask_values}")
+            # # Print the nuts mask values
+            # print(f"nuts mask values {nuts_mask_values}")
 
             # Loop over the regions
             for i in tqdm((range(n_flags))):
@@ -2436,15 +2456,82 @@ def correlate_nao_uread(
                 # Add this to the dataframe
                 df_ts[nuts_mask.attrs["flag_meanings"].split(" ")[i]] = out_sel
 
-            # # Take the central rolling average
-            # df_ts = (
-            #     df_ts.set_index("time")
-            #     .rolling(window=rolling_window, center=centre)
-            #     .mean()
-            # )
+            # Loop over the region for the obs
+            for i in tqdm((range(n_flags_obs))):
+                # add a new column to the dataframe
+                df_ts_obs[nuts_mask_obs.attrs["flag_meanings"].split(" ")[i]] = np.nan
+
+                # Print the region we are calculating correlations for
+                print(
+                    f"Calculating correlation for region: {nuts_mask_obs.attrs['flag_meanings'].split(' ')[i]}"
+                )
+
+                # Extract the mask for the region
+                sel_mask = nuts_mask_obs.where(nuts_mask_obs == i).values
+
+                # Set up the lon indices
+                id_lon = lons_obs[np.where(~np.all(np.isnan(sel_mask), axis=0))]
+
+                # Set up the lat indices
+                id_lat = lats_obs[np.where(~np.all(np.isnan(sel_mask), axis=1))]
+
+                # If the length of id_lon is 0 and the length of id_lat is 0
+                if len(id_lon) == 0 and len(id_lat) == 0:
+                    print(
+                        f"Region {nuts_mask_obs.attrs['flag_meanings'].split(' ')[i]} is empty."
+                    )
+                    print("Continuing to the next region.")
+                    continue
+
+                # # Print the id_lat and id_lon
+                # print("id_lat[0], id_lat[-1]: ", id_lat[0], id_lat[-1])
+
+                # # Print the id_lat and id_lon
+                # print("id_lon[0], id_lon[-1]: ", id_lon[0], id_lon[-1])
+
+                # # print the id_lat and id_lon
+                # print("id_lat: ", id_lat)
+                # print("id_lon: ", id_lon)
+
+                # print("id_lat type: ", type(id_lat))
+                # print("id_lon type: ", type(id_lon))
+
+                # Select the region for the anoms
+                out_sel = (
+                    clim_var_anomaly.sel(
+                        lat=slice(id_lat[0], id_lat[-1]),
+                        lon=slice(id_lon[0], id_lon[-1]),
+                    )
+                    .compute()
+                    .where(nuts_mask_obs == i)
+                )
+
+                # Group this into a mean
+                out_sel = out_sel.mean(dim=["lat", "lon"])
+
+                # Add this to the dataframe
+                df_ts_obs[nuts_mask_obs.attrs["flag_meanings"].split(" ")[i]] = out_sel.values
+
+            # Take the central rolling average
+            df_ts_obs = (
+                df_ts_obs.set_index("time")
+                .rolling(window=rolling_window, center=centre)
+                .mean()
+            )
+
+            # Set up the columns for df_ts_obs
+            df_ts_obs.columns = [
+                f"{col}_{obs_var}" for col in df_ts_obs.columns if col != "time"
+            ]
+
+            # Drop the first rolling window over 2 values
+            df_ts_obs = df_ts_obs.iloc[int(rolling_window / 2) :]
 
             # print the head of df_ts
             print("Head of df_ts: ", df_ts.head())
+
+            # print the head of the df_ts_obs
+            print("Head of df_ts_obs: ", df_ts_obs.head())
 
             # Set the index of df_ts to time
             df_ts = df_ts.set_index("time")
@@ -2454,6 +2541,19 @@ def correlate_nao_uread(
             df_ts.columns = [
                 f"{col}_{obs_var}" for col in df_ts.columns if col != "time"
             ]
+
+            try:
+                # try joining the dataframes
+                merged_df_ts = df_ts_obs.join(df_ts, how="inner")
+            except Exception as e:
+                # print the exception
+                print(e)
+
+            # Assert that merged_df_ts has the same length as df_ts
+            assert len(merged_df_ts) == len(df_ts), "The lengths are not the same."
+
+            # Assert that not all the values in merged_df_ts are NaN
+            assert not merged_df_ts.isnull().values.all(), "All the values are NaN."
 
             # # Drop the first rolling window/2 values
             # df_ts = df_ts.iloc[int(rolling_window / 2) :]
