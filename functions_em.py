@@ -19,7 +19,8 @@ import xarray as xr
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from tqdm import tqdm
-from scipy.stats import pearsonr, linregress, t, signal
+from scipy.stats import pearsonr, linregress, t
+from scipy import signal
 from datetime import datetime
 import geopandas as gpd
 import regionmask
