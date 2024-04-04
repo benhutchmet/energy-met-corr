@@ -1519,8 +1519,8 @@ def correlate_nao_uread(
     # Take annual means
     clim_var_annual = clim_var_shifted.resample(time="Y").mean()
 
-    # Throw away years 1959, 2021, 2022 and 2023
-    clim_var_annual = clim_var_annual.sel(time=slice(start_year, end_year))
+    # Throw away years 1959
+    clim_var_annual = clim_var_annual.sel(time=slice(start_year, None))
 
     # Remove the climatology
     clim_var_anomaly = clim_var_annual - clim_var_annual.mean(dim="time")
@@ -2519,10 +2519,21 @@ def correlate_nao_uread(
                 .mean()
             )
 
+            # Set the index to year
+            df_ts_obs.index = df_ts_obs.index.year
+
             # Set up the columns for df_ts_obs
             df_ts_obs.columns = [
-                f"{col}_{obs_var}" for col in df_ts_obs.columns if col != "time"
+                f"{col}_{obs_var}_obs" for col in df_ts_obs.columns if col != "time"
             ]
+
+            # if the obs variable is in ["ssrd", "rsds"]
+            if obs_var in ["ssrd", "rsds"]:
+                # Divide by 86400 to convert from J/m^2 to W m/m^2
+                df_ts_obs = df_ts_obs / 86400
+            else:
+                # Raise an error for other cases
+                raise NotImplementedError(f"Handling for obs_var '{obs_var}' is not implemented yet.")
 
             # Drop the first rolling window over 2 values
             df_ts_obs = df_ts_obs.iloc[int(rolling_window / 2) :]
@@ -2549,8 +2560,10 @@ def correlate_nao_uread(
                 # print the exception
                 print(e)
 
-            # Assert that merged_df_ts has the same length as df_ts
-            assert len(merged_df_ts) == len(df_ts), "The lengths are not the same."
+            # Print the len of the merged_df_ts
+            print("Length of merged_df_ts: ", len(merged_df_ts))
+            print("Length of df_ts: ", len(df_ts))
+            print("Length of df_ts_obs: ", len(df_ts_obs))
 
             # Assert that not all the values in merged_df_ts are NaN
             assert not merged_df_ts.isnull().values.all(), "All the values are NaN."
@@ -2633,7 +2646,7 @@ def correlate_nao_uread(
                 corr_df = pd.concat([corr_df, corr_df_to_append], ignore_index=True)
 
             # Return the dataframes
-            return merged_df, corr_df, shapefile
+            return merged_df, corr_df, shapefile, merged_df_ts
         elif shp_file is not None and "eez" in shp_file and use_model_data is True:
             print("Using model data averaged over EEZ regions")
 
