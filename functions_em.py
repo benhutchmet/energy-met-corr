@@ -19,7 +19,7 @@ import xarray as xr
 import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from tqdm import tqdm
-from scipy.stats import pearsonr, linregress, t
+from scipy.stats import pearsonr, linregress, t, signal
 from datetime import datetime
 import geopandas as gpd
 import regionmask
@@ -3215,4 +3215,118 @@ def plot_calib_corr(
     # Show the plot
     plt.show()
 
+    return None
+
+# Define a function for plotting the time series
+def plot_time_series(
+    df: pd.DataFrame,
+    predictor_col: str,
+    predictand_col: str,
+    ylabel: str,
+    figsize_x: int = 10,
+    figsize_y: int = 5,
+    twin_axes: bool = True,
+    ylabel_2: str = None,
+    do_detrend: bool = False,
+) -> None:
+    """
+    Plots the time series for the model NAO and the observed variable.
+
+    Args:
+    -----
+
+    df: pd.DataFrame
+        The dataframe containing the calibrated results.
+
+    predictor_col: str
+        The name of the variable being used to predict.
+
+    predictand_col: str
+        The name of the variable we are trying to predict.
+
+    ylabel: str
+        The label for the (first) y-axis
+
+    figsize_x: int
+        The x size of the figure.
+
+    figsize_y: int
+        The y size of the figure.
+
+    twin_axes: bool
+        Whether to plot on twin axes or not, default is True.
+
+    y_label2: str
+        In the case of using twin axes, the label for this second axis.
+
+    do_detrend: bool
+        True for detrended time series.
+
+    Returns:
+    --------
+
+    None
+
+    """
+
+    # if do_detrend is true
+    if do_detrend is True:
+        # Detrend the time series
+        df[predictor_col] = signal.detrend(df[predictor_col])
+        df[predictand_col] = signal.detrend(df[predictand_col])
+
+    # Set up the figure
+    fig, ax = plt.subplots(figsize=(figsize_x, figsize_y))
+
+    # Plot the model NAO mean
+    ax.plot(df.index, df[f"{predictor_col}"], color="b")
+
+    # Plot the y label
+    ax.set_ylabel(ylabel, color="b")
+
+    if twin_axes is True:
+        # Create a twin axes
+        ax2 = ax.twinx()
+
+        # Plot the second variable
+        ax2.plot(df.index, df[f"{predictand_col}"], color="r")
+
+        # Set up the y label for the second axis
+        ax2.set_ylabel(ylabel_2, color="r")
+
+        # Set the colour of the ticks
+        ax2.tick_params("y", colors="r")
+    else:
+        # Plot the observed time series
+        ax.plot(df.index, df[f"{predictand_col}"], color="r")
+
+    # Set up the x-axis label
+    ax.set_xlabel("Initialization year")
+
+    # Calculate the correlation coefficients
+    corr, p_val = pearsonr(df[f"{predictor_col}"], df[f"{predictand_col}"])
+
+    # Include a textbox in the top left hand corner with the corr and p values
+    plt.text(
+        0.05,
+        0.95,
+        f"Corr: {round(corr, 2)}\n p-value: {round(p_val, 3)}",
+        horizontalalignment="left",
+        verticalalignment="top",
+        transform=plt.gca().transAxes,
+        bbox=dict(facecolor="white", alpha=0.5),
+    )
+
+    # print(p_val)
+
+    # Include a horixzontal black dashed line at y=0
+    plt.axhline(0, color="black", linestyle="--")
+
+    # Include a legend
+    plt.legend(loc="upper right")
+
+    # Show the plot
+    plt.show()
+
+    # return none
     return None
