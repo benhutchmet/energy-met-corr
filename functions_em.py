@@ -739,6 +739,154 @@ def plot_corr(
     # Return none
     return None
 
+# PLot corr subplots function
+def plot_corr_subplots(
+    corr_array_1: np.ndarray,
+    pval_array_1: np.ndarray,
+    corr_array_2: np.ndarray,
+    pval_array_2: np.ndarray,
+    lats: np.ndarray,
+    lons: np.ndarray,
+    variable_1: str,
+    variable_2: str,
+    sig_threshold: float = 0.05,
+    plot_gridbox: list = None,
+    nao: np.ndarray = None,
+    corr_var_ts_1: np.ndarray = None,
+    corr_var_ts_2: np.ndarray = None,
+    lat_bounds: list = [30, 80],
+    lon_bounds: list = [-60, 40],
+    figsize_x: int = 20,
+    figsize_y: int = 10,
+):
+    """
+    Plots the correlation and p-values for the spatial correlation.
+    Produces 1 x 2 subplots for the spatial correlations of the NAO.
+
+    Args:
+    -----
+
+    corr_array_1: np.ndarray
+        The array containing the correlation values for the first variable.
+
+    pval_array_1: np.ndarray
+        The array containing the p-values for the first variable.
+
+    corr_array_2: np.ndarray
+        The array containing the correlation values for the second variable.
+
+    pval_array_2: np.ndarray
+        The array containing the p-values for the second variable.
+
+    lats: np.ndarray
+        The array containing the latitudes.
+
+    lons: np.ndarray
+        The array containing the longitudes.
+
+    variable_1: str
+        The variable to use for the plot title.
+
+    variable_2: str
+        The variable to use for the plot title.
+
+    sig_threshold: float
+        The significance threshold for the correlation.
+
+    plot_gridbox: list
+        List of gridboxes to plot on the plot.
+
+    nao: np.ndarray
+        The array containing the NAO index values.
+
+    corr_var_ts_1: np.ndarray
+        The array containing the variable to correlate values for the first variable.
+
+    corr_var_ts_2: np.ndarray
+        The array containing the variable to correlate values for the second variable.
+
+    lat_bounds: list
+        The bounds for the latitude.
+
+    lon_bounds: list
+        The bounds for the longitude.
+
+    figsize_x: int
+        The x dimension for the figure size.
+
+    figsize_y: int
+        The y dimension for the figure size.
+
+    Returns:
+    --------
+
+    None
+    """
+
+    # Set up the projection
+    proj = ccrs.PlateCarree(central_longitude=0)
+
+    # Plot these values
+    # Set up a single subplot
+    fig, axs = plt.subplots(nrows=1, ncols=2, figsize=(figsize_x, figsize_y), subplot_kw={"projection": proj})
+
+    # Focus on the euro-atlantic region
+    lat1_grid, lat2_grid = lat_bounds[0], lat_bounds[1]
+    lon1_grid, lon2_grid = lon_bounds[0], lon_bounds[1]
+
+    lat1_idx_grid = np.argmin(np.abs(lats - lat1_grid))
+    lat2_idx_grid = np.argmin(np.abs(lats - lat2_grid))
+
+    lon1_idx_grid = np.argmin(np.abs(lons - lon1_grid))
+    lon2_idx_grid = np.argmin(np.abs(lons - lon2_grid))
+
+    # Constrain the lats and lons to the grid
+    lats = lats[lat1_idx_grid:lat2_idx_grid]
+    lons = lons[lon1_idx_grid:lon2_idx_grid]
+
+    # Constrain the corr_array to the grid
+    corr_array_1 = corr_array_1[lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid]
+
+    # Constrain the pval_array to the grid
+    pval_array_1 = pval_array_1[lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid]
+
+    # Constrain the corr_array to the grid
+    corr_array_2 = corr_array_2[lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid]
+
+    # Constrain the pval_array to the grid
+    pval_array_2 = pval_array_2[lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid]
+
+    # If nao and corr_var_ts_1 and corr_var_ts_2 are not None
+    if nao is not None and corr_var_ts_1 is not None and corr_var_ts_2 is not None:
+        # Constraint the corr_var_ts array to the grid
+        corr_var_ts_1 = corr_var_ts_1[
+            :, lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid
+        ]
+
+        # Constraint the corr_var_ts array to the grid
+        corr_var_ts_2 = corr_var_ts_2[
+            :, lat1_idx_grid:lat2_idx_grid, lon1_idx_grid:lon2_idx_grid
+        ]
+
+    # Set up the contour levels
+    clevs = np.arange(-1.0, 1.1, 0.1)
+
+    # Include coastlines
+    axs[0].coastlines()
+    axs[1].coastlines()
+
+    # plot the first contour plot on the first subplot
+    cf1 = axs[0].contourf(lons, lats, corr_array_1, clevs, transform=proj, cmap="RdBu_r")
+
+    # plot the second contour plot on the second subplot
+    cf2 = axs[1].contourf(lons, lats, corr_array_2, clevs, transform=proj, cmap="RdBu_r")
+
+    # if any of the p values are greater or less than the significance threshold
+    # Set where the p-values are greater or less than
+    # the significance threshold to nan
+    pval_array
+
+
 
 # Define a function to process the data for plotting scatter plots
 def process_data_for_scatter(
@@ -1327,7 +1475,7 @@ def correlate_nao_uread(
     obs_var: str = "msl",
     obs_var_data_path: str = dicts.regrid_file,
     start_year: str = "1960",
-    end_year: str = "2019",
+    end_year: str = "2023",
     nao_n_grid: dict = dicts.iceland_grid_corrected,
     nao_s_grid: dict = dicts.azores_grid_corrected,
     avg_grid: dict = None,
@@ -3129,11 +3277,12 @@ def calc_model_nao_gridbox_var_corr(
 # Define a function to plot these correlations
 def plot_calib_corr(
     df: pd.DataFrame,
-    obs_var: str,
+    predictand_var: str,
     index_name: str,
     ylabel: str,
     figsize_x: int = 10,
     figsize_y: int = 6,
+    zero_line: bool = True,
 ) -> None:
     """
     Plots the calibrated results for NAO variable correlations.
@@ -3144,7 +3293,7 @@ def plot_calib_corr(
     df: pd.DataFrame
         The dataframe containing the calibrated results.
 
-    obs_var: str
+    predictand_var: str
         The observed variable.
 
     index_name: str
@@ -3181,7 +3330,7 @@ def plot_calib_corr(
     )
 
     # Plot the observed time series
-    ax.plot(df.index, df[f"{obs_var} anomaly mean"], label=f"{obs_var}", color="k")
+    ax.plot(df.index, df[f"{predictand_var}"], label=f"{predictand_var}", color="k")
 
     # Set up the x-axis label
     ax.set_xlabel("Initialization year")
@@ -3191,7 +3340,7 @@ def plot_calib_corr(
 
     # Calculate the correlation coefficients
     corr, p_val = pearsonr(
-        df["calibrated_model_nao_mean"], df[f"{obs_var} anomaly mean"]
+        df["calibrated_model_nao_mean"], df[f"{predictand_var}"]
     )
 
     # Include a textbox in the top left hand corner with the corr and p values
@@ -3207,8 +3356,9 @@ def plot_calib_corr(
 
     print(p_val)
 
-    # Include a horixzontal black dashed line at y=0
-    plt.axhline(0, color="black", linestyle="--")
+    if zero_line:
+        # Include a horixzontal black dashed line at y=0
+        plt.axhline(0, color="black", linestyle="--")
 
     # Include a legend
     plt.legend(loc="upper right")
