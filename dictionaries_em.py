@@ -357,3 +357,9 @@ countries_nuts_id = {
     "Ukraine": "UA",
     "United Kingdom": "UK",
 }
+
+obs_ua_va = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1694423850.2771118-29739-1-db661393-5c44-4603-87a8-2d7abee184d8.nc"
+
+obs_u_850_regrid = "/home/users/benhutch/ERA5/global_regrid_sel_region_var131_85000.nc"
+
+obs_uv_925_regrid = "/home/users/benhutch/ERA5/global_regrid_sel_region_var131_92500.nc"
