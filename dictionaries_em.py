@@ -363,3 +363,14 @@ obs_ua_va = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1694
 obs_u_850_regrid = "/home/users/benhutch/ERA5/global_regrid_sel_region_var131_85000.nc"
 
 obs_uv_925_regrid = "/home/users/benhutch/ERA5/global_regrid_sel_region_var131_92500.nc"
+
+era5_pr = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1708982310.3666325-24382-12-6f0e95b3-7128-4ad4-8bc6-416040163640.nc"
+
+# data for 100m u and v components monthly averags
+# var246 - 100m U component
+# var247 - 100m V component
+obs_100_wind_components = "/home/users/benhutch/ERA5/global_regrid_var246_var247.nc"
+
+# Plotting constrains for north atlantic grid
+# define a grid to plot for the north atlantic
+north_atlantic_grid_plot = {"lon1": -15, "lon2": 40, "lat1": 35, "lat2": 80}
