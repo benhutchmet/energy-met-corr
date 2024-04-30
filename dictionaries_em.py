@@ -115,7 +115,7 @@ regrid_file_pr = "/home/users/benhutch/ERA5/global_regrid_sel_region_var228.nc"
 # regrid file for for other variables
 regrid_file = "/home/users/benhutch/ERA5/global_regrid_sel_region.nc"
 
-era5_msl_path = "~/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc"
+era5_msl_path = "/home/users/benhutch/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc"
 
 # define the uk grid from Clarke et al. 2017
 uk_grid = {"lon1": -10, "lon2": 3, "lat1": 50, "lat2": 60}
@@ -374,3 +374,44 @@ obs_100_wind_components = "/home/users/benhutch/ERA5/global_regrid_var246_var247
 # Plotting constrains for north atlantic grid
 # define a grid to plot for the north atlantic
 north_atlantic_grid_plot = {"lon1": -15, "lon2": 40, "lat1": 35, "lat2": 80}
+
+# variable name map
+var_name_map = {
+    "pr": "Precipitation",
+    "ssrd": "Solar irradiance",
+    "rsds": "Solar irradiance",
+    "tas": "Temperature",
+    "t2m": "Temperature",
+    "si10": "10m wind speed",
+    "sfcWind": "10m wind speed",   
+}
+
+# list of NUTS1 levels to aggregate temperature over UK
+NUTS1_south_zones_dict = {
+    "East": {"code": "UKH", "region": "East"},
+    "East Midlands": {"code": "UKF", "region": "East Midlands"},
+    "East Wales": {"code": "WLS", "region": "Wales"},
+    "Eastern": {"code": "SCT", "region": "Scotalnd"},
+    "Greater London": {"code": "UKI", "region": "London"},
+    "Highlands and Islands": {"code": "SCT", "region": "Scotalnd"},
+    "North East": {"code": "UKC", "region": "North East"},
+    "North Eastern": {"code": "SCT", "region": "Scotalnd"},
+    "North West": {"code": "UKD", "region": "North West"},
+    "Northern Ireland": {"code": "NIR", "region": "Northern Ireland"},
+    "South East": {"code": "UKJ", "region": "South East"},
+    "South West": {"code": "UKK", "region": "South West"},
+    "South Western": {"code": "SCT", "region": "Scotalnd"},
+    "West Midlands": {"code": "UKG", "region": "West Midlands"},
+    "West Wales and the Valleys": {"code": "WLS", "region": "Wales"},
+    "Yorkshire and the Humber": {"code": "UKE", "region": "Yorkshire and the Humber"}
+}
+
+# list of south ones
+NUTS1_south_codes = [
+    "UKH",
+    "UKF",
+    "UKI",
+    "UKJ",
+    "UKK",
+    "UKG",
+]
