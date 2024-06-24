@@ -110,12 +110,12 @@ azores_grid = {"lon1": 152, "lon2": 160, "lat1": 36, "lat2": 40}
 iceland_grid = {"lon1": 155, "lon2": 164, "lat1": 63, "lat2": 70}
 
 # regrid file for pr
-regrid_file_pr = "/home/users/benhutch/ERA5/global_regrid_sel_region_var228.nc"
+regrid_file_pr = "/gws/nopw/j04/canari/users/benhutch/ERA5/global_regrid_sel_region_var228.nc"
 
 # regrid file for for other variables
-regrid_file = "/home/users/benhutch/ERA5/global_regrid_sel_region.nc"
+regrid_file = "/gws/nopw/j04/canari/users/benhutch/ERA5/global_regrid_sel_region.nc"
 
-era5_msl_path = "/home/users/benhutch/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc"
+era5_msl_path = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1691509121.3261805-29348-4-3a487c76-fc7b-421f-b5be-7436e2eb78d7.nc"
 
 # define the uk grid from Clarke et al. 2017
 uk_grid = {"lon1": -10, "lon2": 3, "lat1": 50, "lat2": 60}
@@ -360,16 +360,16 @@ countries_nuts_id = {
 
 obs_ua_va = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1694423850.2771118-29739-1-db661393-5c44-4603-87a8-2d7abee184d8.nc"
 
-obs_u_850_regrid = "/home/users/benhutch/ERA5/global_regrid_sel_region_var131_85000.nc"
+obs_u_850_regrid = "/gws/nopw/j04/canari/users/benhutch/ERA5/global_regrid_sel_region_var131_85000.nc"
 
-obs_uv_925_regrid = "/home/users/benhutch/ERA5/global_regrid_sel_region_var131_92500.nc"
+obs_uv_925_regrid = "/gws/nopw/j04/canari/users/benhutch/ERA5/global_regrid_sel_region_var131_92500.nc"
 
 era5_pr = "/gws/nopw/j04/canari/users/benhutch/ERA5/adaptor.mars.internal-1708982310.3666325-24382-12-6f0e95b3-7128-4ad4-8bc6-416040163640.nc"
 
 # data for 100m u and v components monthly averags
 # var246 - 100m U component
 # var247 - 100m V component
-obs_100_wind_components = "/home/users/benhutch/ERA5/global_regrid_var246_var247.nc"
+obs_100_wind_components = "/gws/nopw/j04/canari/users/benhutch/ERA5/global_regrid_var246_var247.nc"
 
 # Plotting constrains for north atlantic grid
 # define a grid to plot for the north atlantic
