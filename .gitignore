@@ -6,6 +6,22 @@ __pycache__/
 # C extensions
 *.so
 
+# ignore the logs
+logs/*.out
+logs/*.log
+logs/*.err
+
+# Ignore plots created
+plots/*.png
+plots/*.pdf
+
+# Ignore images
+images/*.png
+images/*.jpg
+images/*.svg
+images/*.pdf
+images/eez_map*
+
 # Anything in the shapefiles dir
 shapefiles/
 
