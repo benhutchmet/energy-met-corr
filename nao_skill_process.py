@@ -41,8 +41,8 @@ stats_dict_tas = funcs_em.calc_nao_spatial_corr(
     end_year=2023,
     corr_var="t2m",
     corr_var_obs_file=dicts.regrid_file,
-    nao_n_grid=dicts.uk_n_box_corrected,
-    nao_s_grid=dicts.uk_s_box_corrected,
+    nao_n_grid=dicts.iceland_grid_corrected,
+    nao_s_grid=dicts.azores_grid_corrected,
 )
 
 # Calculate the stats for the precipitation
@@ -52,8 +52,8 @@ stats_dict_sfcWind = funcs_em.calc_nao_spatial_corr(
     start_year=1960,
     end_year=2023,
     corr_var="si10",
-    nao_n_grid=dicts.uk_n_box_corrected,
-    nao_s_grid=dicts.uk_s_box_corrected,
+    nao_n_grid=dicts.iceland_grid_corrected,
+    nao_s_grid=dicts.azores_grid_corrected,
 )
 
 # Calculate the stats for the precipitation
@@ -63,8 +63,8 @@ stats_dict_rsds = funcs_em.calc_nao_spatial_corr(
     start_year=1960,
     end_year=2023,
     corr_var="ssrd",
-    nao_n_grid=dicts.uk_n_box_corrected,
-    nao_s_grid=dicts.uk_s_box_corrected,
+    nao_n_grid=dicts.iceland_grid_corrected,
+    nao_s_grid=dicts.azores_grid_corrected,
 )
 
 # Calculate the stats for the precipitation
@@ -75,8 +75,8 @@ stats_dict_pr = funcs_em.calc_nao_spatial_corr(
     end_year=2023,
     corr_var="var228",
     corr_var_obs_file=dicts.regrid_file_pr,
-    nao_n_grid=dicts.uk_n_box_corrected,
-    nao_s_grid=dicts.uk_s_box_corrected,
+    nao_n_grid=dicts.iceland_grid_corrected,
+    nao_s_grid=dicts.azores_grid_corrected,
 )
 
 corr_tas, pval_tas = funcs_em.calculate_correlation_and_pvalue(
@@ -143,7 +143,7 @@ fig_labels = [
 # Plot_gribdox
 plot_gridboxes = [
     dicts_sm.uk_grid,
-    dicts_sm.north_sea_kay,
+    dicts_sm.n_eur_wind_box,
     dicts_sm.med_box_focus,
     dicts_sm.scandi_box,
 ]

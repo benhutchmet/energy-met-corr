@@ -25,6 +25,8 @@ images/eez_map*
 # Anything in the shapefiles dir
 shapefiles/
 
+plots*.pdf
+
 # Distribution / packaging
 .Python
 build/
